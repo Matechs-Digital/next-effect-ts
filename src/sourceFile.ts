@@ -2,5 +2,5 @@
  * @compiler sourceFile
  */
 export function sourceFile(): string {
-  return "";
+  throw new Error("sourceFile compiler plugin not enabled")
 }
