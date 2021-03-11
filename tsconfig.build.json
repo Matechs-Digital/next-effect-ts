@@ -13,8 +13,16 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "react",
-    "plugins": [{ "transform": "@effect-ts/tracing-plugin" }]
+    "plugins": [
+      { "transform": "@effect-ts/tracing-plugin" },
+      { "transform": "./plugins/sourceFile.ts" }
+    ]
   },
-  "include": ["next-env.d.ts", "pages/**/*.ts", "pages/**/*.tsx"],
+  "include": [
+    "next-env.d.ts",
+    "pages/**/*.ts",
+    "pages/**/*.tsx",
+    "src/**/*.ts"
+  ],
   "exclude": ["node_modules"]
 }
