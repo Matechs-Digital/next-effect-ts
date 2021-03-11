@@ -1,4 +1,5 @@
 import ts, { factory } from "typescript";
+import path from "path"
 
 export default function sourceFile(
   _program: ts.Program,
@@ -6,7 +7,6 @@ export default function sourceFile(
     identity?: boolean;
   }
 ) {
-  const identityOn = !(_opts?.identity === false);
   const checker = _program.getTypeChecker();
   return {
     before(ctx: ts.TransformationContext) {
@@ -37,7 +37,7 @@ export default function sourceFile(
             const optimizeTags = new Set([...(optimizeTagsOverload || [])]);
 
             if (optimizeTags.has("sourceFile")) {
-              return factory.createStringLiteral(sourceFile.fileName);
+              return factory.createStringLiteral(path.relative(path.join(__filename, "../../"), sourceFile.fileName));
             }
           }
 
