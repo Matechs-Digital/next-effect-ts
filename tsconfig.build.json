@@ -15,6 +15,12 @@
     "jsx": "react",
     "plugins": [{ "transform": "@effect-ts/tracing-plugin" }]
   },
-  "include": ["next-env.d.ts", "pages/**/*.ts", "pages/**/*.tsx"],
+  "include": [
+    "next-env.d.ts",
+    "pages/**/*.ts",
+    "pages/**/*.tsx",
+    "context/**/*.tsx",
+    "environment/**/*.ts"
+  ],
   "exclude": ["node_modules"]
 }

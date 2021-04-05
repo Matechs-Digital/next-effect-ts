@@ -1,8 +1,15 @@
+import "../styles/globals.css"
+
 import React from "react"
-import '../styles/globals.css'
+
+import { LiveServiceContext } from "../context"
 
 function MyApp({ Component, pageProps }: any) {
-  return <Component {...pageProps} />
+  return (
+    <LiveServiceContext>
+      <Component {...pageProps} />
+    </LiveServiceContext>
+  )
 }
 
 export default MyApp
