@@ -32,14 +32,14 @@ export interface AppEnvironment<R> {
   Provider: React.FC<{
     layer: L.Layer<T.DefaultEnv, never, R>
   }>
-  useEffect: (self: Lazy<T.RIO<R, void>>, dependencies?: AnyRef[]) => void
+  useEffect: (self: Lazy<T.RIO<R, void>>, deps: AnyRef[]) => void
   useHub<A>(): UseHub<A>
   useSubscribe<A>(
     initial: A,
     subscribe: Lazy<S.Stream<unknown, never, A>>,
-    deps?: unknown[] | undefined
+    deps: AnyRef[]
   ): [A]
-  useQuery: <E, B>(f: Lazy<Q.Query<R, E, B>>, deps?: AnyRef[]) => QueryResult<E, B>
+  useQuery: <E, B>(f: Lazy<Q.Query<R, E, B>>, deps: AnyRef[]) => QueryResult<E, B>
 }
 
 export interface ServiceContext<R> {

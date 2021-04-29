@@ -25,24 +25,13 @@ export const LiveCalculator = L.fromEffect(Calculator)(makeCalculator)
 export const App = createApp<Has<Calculator> & T.DefaultEnv>()
 
 export function Autocomplete() {
-  const [name, updateName] = React.useState("")
   const [subName, pubName] = App.useHub<string>()
+
+  const [name] = App.useSubscribe("", subName, [])
 
   const nameLength = App.useQuery(
     () => Q.fromEffect(T.succeedWith(() => name.length)["|>"](T.delay(1000))),
     [name]
-  )
-
-  App.useEffect(() =>
-    pipe(
-      subName(),
-      S.mapM((name) =>
-        T.succeedWith(() => {
-          updateName(name)
-        })
-      ),
-      S.runDrain
-    )
   )
 
   const renderDone: (_: Either<never, number>) => string = matchTag({
