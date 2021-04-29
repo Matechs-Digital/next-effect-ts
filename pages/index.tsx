@@ -1,32 +1,62 @@
 import * as T from "@effect-ts/core/Effect"
+import * as S from "@effect-ts/core/Effect/Experimental/Stream"
+import * as L from "@effect-ts/core/Effect/Layer"
 import { pipe } from "@effect-ts/core/Function"
-import React from "react"
+import type { Has } from "@effect-ts/core/Has"
+import { tag } from "@effect-ts/core/Has"
+import type { _A } from "@effect-ts/core/Utils"
+import * as React from "react"
 
-import { useServiceContext } from "../context"
-import { add } from "../environment/calculator"
+import { createApp as createApp } from "../goods/appEnvironmet"
 
-export default function Home() {
-  const { runWithErrorLog } = useServiceContext()
-  const [base, setBase] = React.useState(0)
+export const makeCalculator = T.succeedWith(() => {
+  return {
+    add: (x: number, y: number) => T.succeedWith(() => x + y)
+  } as const
+})
+
+export interface Calculator extends _A<typeof makeCalculator> {}
+export const Calculator = tag<Calculator>()
+export const LiveCalculator = L.fromEffect(Calculator)(makeCalculator)
+
+export const App = createApp<Has<Calculator> & T.DefaultEnv>()
+
+export function Autocomplete() {
+  const [count, updateCount] = React.useState(0)
+  const [input, updateInput] = App.useStream<string>()
+
+  App.useEffect(
+    pipe(
+      input,
+      S.mapM((value) =>
+        T.succeedWith(() => {
+          updateCount(value.length)
+        })
+      ),
+      S.runDrain
+    )
+  )
+
   return (
     <div>
-      {base}
-      <br />
-      <button
-        onClick={() => {
-          pipe(
-            add(base, 1),
-            T.chain((n) =>
-              T.succeedWith(() => {
-                setBase(n)
-              })
-            ),
-            runWithErrorLog
-          )
+      <input
+        type="text"
+        name="name"
+        onChange={(_) => {
+          updateInput(_.target.value)
         }}
-      >
-        next
-      </button>
+      />
+      <div>Count: {count}</div>
     </div>
   )
 }
+
+function Home() {
+  return (
+    <App.Provider layer={LiveCalculator["+++"](L.identity<T.DefaultEnv>())}>
+      <Autocomplete />
+    </App.Provider>
+  )
+}
+
+export default Home
