@@ -9,7 +9,7 @@ import { tag } from "@effect-ts/core/Has"
 import type { _A } from "@effect-ts/core/Utils"
 import { matchTag } from "@effect-ts/core/Utils"
 import * as Q from "@effect-ts/query/Query"
-import * as Schema from "@effect-ts/schema"
+import * as MO from "@effect-ts/schema"
 import * as Parser from "@effect-ts/schema/Parser"
 import * as React from "react"
 
@@ -45,19 +45,21 @@ export function httpFetch(input: RequestInfo, init?: Omit<RequestInit, "signal">
   )
 }
 
-const Commit = Schema.struct({
+const CommitBody = MO.struct({
   required: {
-    commit: Schema.struct({
-      required: {
-        message: Schema.string
-      }
-    })
+    message: MO.string
   }
 })
 
-const Commits = Schema.chunk(Commit)
+const Commit = MO.struct({
+  required: {
+    commit: CommitBody
+  }
+})
 
-const parseCommits = Parser.for(Commits)["|>"](Schema.condemnFail)
+const Commits = MO.chunk(Commit)
+
+const parseCommits = Parser.for(Commits)["|>"](MO.condemnFail)
 
 export function Autocomplete() {
   const [page, setPage] = React.useState(0)
@@ -75,7 +77,7 @@ export function Autocomplete() {
   )
 
   const renderDone: (
-    _: Either<HttpError | Schema.CondemnException, Schema.ParsedShapeOf<typeof Commits>>
+    _: Either<HttpError | MO.CondemnException, MO.ParsedShapeOf<typeof Commits>>
   ) => JSX.Element = matchTag({
     Right: (_) => (
       <div>
