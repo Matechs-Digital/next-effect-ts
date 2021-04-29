@@ -12,7 +12,6 @@ import { matchTag } from "@effect-ts/core/Utils"
 import * as Q from "@effect-ts/query/Query"
 import * as MO from "@effect-ts/schema"
 import * as Parser from "@effect-ts/schema/Parser"
-import { Schema } from "node:inspector"
 import * as React from "react"
 
 import { createApp } from "../goods/appEnvironmet"
@@ -22,17 +21,27 @@ export class HttpError extends Tagged("HttpError")<{
 }> {}
 
 export function httpFetch(input: RequestInfo, init?: Omit<RequestInit, "signal">) {
-  const cotroller = new AbortController()
-  const signal = cotroller.signal
-  const params = {
-    signal,
-    ...init
-  }
+  return T.effectAsyncInterrupt<unknown, HttpError, unknown>((cb) => {
+    const cotroller = new AbortController()
 
-  return T.tryCatchPromise(
-    () => fetch(input, params).then((data): Promise<unknown> => data.json()),
-    (error) => new HttpError({ error })
-  )
+    fetch(input, {
+      signal: cotroller.signal,
+      ...init
+    })
+      .then((data): Promise<unknown> => data.json())
+      .then(
+        (out) => {
+          cb(T.succeed(out))
+        },
+        (error) => {
+          cb(T.fail(new HttpError({ error })))
+        }
+      )
+
+    return T.succeedWith(() => {
+      cotroller.abort()
+    })
+  })
 }
 
 const CommitBody = MO.struct({
