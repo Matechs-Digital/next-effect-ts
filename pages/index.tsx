@@ -28,7 +28,7 @@ export function Autocomplete() {
   const [subName, pubName] = App.useHub<string>()
 
   const [nameLength, queryNameLength] = App.useQuery((name: string) =>
-    Q.fromEffect(T.succeedWith(() => name.length))
+    Q.fromEffect(T.succeedWith(() => name.length)["|>"](T.delay(1000)))
   )
 
   App.useEffect(() =>
