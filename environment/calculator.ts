@@ -5,10 +5,10 @@ import type { _A } from "@effect-ts/core/Utils"
 
 export const CalculatorTypeId: unique symbol = Symbol()
 
-export const makeLiveCalculator = T.effectTotal(() => {
+export const makeLiveCalculator = T.succeedWith(() => {
   return {
     _typeId: CalculatorTypeId,
-    add: (x: number, y: number) => T.effectTotal(() => x + y)
+    add: (x: number, y: number) => T.succeedWith(() => x + y)
   } as const
 })
 

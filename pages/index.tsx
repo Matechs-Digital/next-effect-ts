@@ -17,7 +17,7 @@ export default function Home() {
           pipe(
             add(base, 1),
             T.chain((n) =>
-              T.effectTotal(() => {
+              T.succeedWith(() => {
                 setBase(n)
               })
             ),

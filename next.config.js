@@ -1,6 +1,9 @@
 // eslint-disable-next-line no-undef
 module.exports = {
   webpack: (config) => {
+    if (config.mode === "development") {
+      return config
+    }
     config.module.rules = [
       {
         test: /\.(tsx|ts)$/,
