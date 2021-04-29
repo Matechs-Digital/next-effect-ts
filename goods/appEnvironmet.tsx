@@ -69,10 +69,10 @@ export function createApp<R>(): AppEnvironment<R> {
       () => new S.Stream(Channel.fromHub(hub)["|>"](Channel.mapOut(Chunk.single))),
       deps
     )
-    const publusher = React.useCallback((a) => {
+    const publisher = React.useCallback((a) => {
       T.run(H.publish_(hub, Ex.succeed(a)))
     }, deps)
-    return [subscribe, publusher]
+    return [subscribe, publisher]
   }
 
   function useEffect(self: T.RIO<R, void>, deps?: AnyRef[]) {
