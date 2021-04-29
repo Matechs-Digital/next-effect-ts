@@ -23,7 +23,7 @@ export interface ServiceContext<R> {
   readonly provide: <E, A>(self: T.Effect<R, E, A>) => T.Effect<unknown, E, A>
 }
 
-export type UseStream<A> = [S.Stream<unknown, never, A>, (a: A) => void]
+export type UseStream<A> = [() => S.Stream<unknown, never, A>, (a: A) => void]
 
 export function createApp<R>(): AppEnvironment<R> {
   const MissingContext = T.die(
@@ -65,14 +65,14 @@ export function createApp<R>(): AppEnvironment<R> {
       () => H.unsafeMakeUnbounded<Ex.Exit<E.Either<never, void>, A>>(),
       deps
     )
-    const stream = React.useMemo(
+    const subscribe = React.useCallback(
       () => new S.Stream(Channel.fromHub(hub)["|>"](Channel.mapOut(Chunk.single))),
       deps
     )
     const publusher = React.useCallback((a) => {
       T.run(H.publish_(hub, Ex.succeed(a)))
     }, deps)
-    return [stream, publusher]
+    return [subscribe, publusher]
   }
 
   function useEffect(self: T.RIO<R, void>, deps?: AnyRef[]) {

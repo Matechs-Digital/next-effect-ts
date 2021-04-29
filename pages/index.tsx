@@ -1,9 +1,10 @@
 import * as T from "@effect-ts/core/Effect"
 import * as S from "@effect-ts/core/Effect/Experimental/Stream"
 import * as L from "@effect-ts/core/Effect/Layer"
-import { pipe } from "@effect-ts/core/Function"
+import { identity, pipe } from "@effect-ts/core/Function"
 import type { Has } from "@effect-ts/core/Has"
 import { tag } from "@effect-ts/core/Has"
+import * as O from "@effect-ts/core/Option"
 import type { _A } from "@effect-ts/core/Utils"
 import * as React from "react"
 
@@ -23,14 +24,27 @@ export const App = createApp<Has<Calculator> & T.DefaultEnv>()
 
 export function Autocomplete() {
   const [count, updateCount] = React.useState(0)
-  const [input, updateInput] = App.useStream<string>()
+  const [current, updateCurrent] = React.useState(O.emptyOf<string>())
+  const [getInputStream, publishInput] = App.useStream<string>()
 
   App.useEffect(
     pipe(
-      input,
+      getInputStream(),
       S.mapM((value) =>
         T.succeedWith(() => {
           updateCount(value.length)
+        })
+      ),
+      S.runDrain
+    )
+  )
+
+  App.useEffect(
+    pipe(
+      getInputStream(),
+      S.mapM((value) =>
+        T.succeedWith(() => {
+          updateCurrent(O.some(value))
         })
       ),
       S.runDrain
@@ -43,10 +57,11 @@ export function Autocomplete() {
         type="text"
         name="name"
         onChange={(_) => {
-          updateInput(_.target.value)
+          publishInput(_.target.value)
         }}
       />
       <div>Count: {count}</div>
+      <div>Current: {current["|>"](O.fold(() => "N/A", identity))}</div>
     </div>
   )
 }
