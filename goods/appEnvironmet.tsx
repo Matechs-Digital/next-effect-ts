@@ -43,9 +43,7 @@ export interface AppEnvironment<R> {
     subscribe: Lazy<S.Stream<unknown, never, A>>,
     deps?: unknown[] | undefined
   ): [A]
-  useQuery: <E, A, B>(
-    f: (a: A) => Q.Query<R, E, B>
-  ) => [QueryResult<E, B>, (a: A) => void]
+  useQuery: <E, B>(f: Lazy<Q.Query<R, E, B>>, deps?: AnyRef[]) => QueryResult<E, B>
 }
 
 export interface ServiceContext<R> {
@@ -135,45 +133,39 @@ export function createApp<R>(): AppEnvironment<R> {
     }, deps)
   }
 
-  function useQuery<E, A, B>(
-    f: (a: A) => Q.Query<R, E, B>
-  ): [QueryResult<E, B>, (a: A) => void] {
+  function useQuery<E, B>(
+    f: Lazy<Q.Query<R, E, B>>,
+    deps?: AnyRef[]
+  ): QueryResult<E, B> {
     const [state, updateState] = React.useState<QueryResult<E, B>>(new Initial())
-    const [current, updateCurrent] = React.useState(O.emptyOf<A>())
 
     useEffect(
       () =>
-        O.isSome(current)
-          ? pipe(
-              T.succeedWith(() => {
-                updateState(
-                  state["|>"](
-                    matchTag({
-                      Done: (_) => new Refreshing({ current: _.current }),
-                      Refreshing: (_) => _,
-                      Initial: () => new Loading(),
-                      Loading: (_) => _
-                    })
-                  )
-                )
-              }),
-              T.zipRight(Q.run(f(current.value))),
-              T.either,
-              T.chain((done) =>
-                T.succeedWith(() => {
-                  updateState((_) => new Done({ current: done }))
+        pipe(
+          T.succeedWith(() => {
+            updateState(
+              state["|>"](
+                matchTag({
+                  Done: (_) => new Refreshing({ current: _.current }),
+                  Refreshing: (_) => _,
+                  Initial: () => new Loading(),
+                  Loading: (_) => _
                 })
               )
             )
-          : T.unit,
-      [current]
+          }),
+          T.zipRight(T.suspend(() => Q.run(f()))),
+          T.either,
+          T.chain((done) =>
+            T.succeedWith(() => {
+              updateState((_) => new Done({ current: done }))
+            })
+          )
+        ),
+      deps
     )
 
-    const cb = React.useCallback((a: A) => {
-      updateCurrent(O.some(a))
-    }, [])
-
-    return [state, cb]
+    return state
   }
 
   return {
