@@ -23,32 +23,16 @@ export const LiveCalculator = L.fromEffect(Calculator)(makeCalculator)
 export const App = createApp<Has<Calculator> & T.DefaultEnv>()
 
 export function Autocomplete() {
-  const [count, updateCount] = React.useState(0)
-  const [current, updateCurrent] = React.useState(O.emptyOf<string>())
-  const [getInputStream, publishInput] = App.useStream<string>()
+  const [subName, pubName] = App.useHub<string>()
 
-  App.useEffect(
-    pipe(
-      getInputStream(),
-      S.mapM((value) =>
-        T.succeedWith(() => {
-          updateCount(value.length)
-        })
+  const [[current, count]] = App.useSubscribe(
+    ["N/A", 0] as const,
+    () =>
+      pipe(
+        subName(),
+        S.map((s) => [s, s.length] as const)
       ),
-      S.runDrain
-    )
-  )
-
-  App.useEffect(
-    pipe(
-      getInputStream(),
-      S.mapM((value) =>
-        T.succeedWith(() => {
-          updateCurrent(O.some(value))
-        })
-      ),
-      S.runDrain
-    )
+    []
   )
 
   return (
@@ -57,11 +41,11 @@ export function Autocomplete() {
         type="text"
         name="name"
         onChange={(_) => {
-          publishInput(_.target.value)
+          pubName(_.target.value)
         }}
       />
       <div>Count: {count}</div>
-      <div>Current: {current["|>"](O.fold(() => "N/A", identity))}</div>
+      <div>Current: {current}</div>
     </div>
   )
 }

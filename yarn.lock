@@ -226,17 +226,17 @@
     lodash "^4.17.19"
     to-fast-properties "^2.0.0"
 
-"@effect-ts/core@^0.36.4":
-  version "0.36.4"
-  resolved "https://registry.yarnpkg.com/@effect-ts/core/-/core-0.36.4.tgz#80538ae413cbee75363b9446ae68e39edd429e02"
-  integrity sha512-2/yDiAkyqbrStvi/thV/FcoZd9cjydD60WNzphPuYdCYrySmCKgPjIcRb8fBYN78aptXdxRmP5Lwq0bUR9R6wQ==
+"@effect-ts/core@^0.36.5":
+  version "0.36.5"
+  resolved "https://registry.yarnpkg.com/@effect-ts/core/-/core-0.36.5.tgz#4ec4a2d4d97c8c24b7394e0dd9cc5bed42dbe844"
+  integrity sha512-RgPkQwqVmaZRMffFd1/iOKysjL+HFgJKn+umvVZJE5rMlRdJO0c27d8rLa3C/5U4cscPjd+Kr1ZlyOsxSm5j9g==
   dependencies:
-    "@effect-ts/system" "^0.33.4"
+    "@effect-ts/system" "^0.33.5"
 
-"@effect-ts/system@^0.33.4":
-  version "0.33.4"
-  resolved "https://registry.yarnpkg.com/@effect-ts/system/-/system-0.33.4.tgz#917bc5f931b52bd292ba735f78812208663d76e7"
-  integrity sha512-vMI0u1KShrlGqCsUxWc4vRyraVWg6KIKR+kxNNRZH71vcFQv9kvFhakjYfQG/oXVmKkaKRsX36j46xaRERPF5w==
+"@effect-ts/system@^0.33.5":
+  version "0.33.5"
+  resolved "https://registry.yarnpkg.com/@effect-ts/system/-/system-0.33.5.tgz#38c63f96dfd7d1beef4e14843ec50ba364ddf72e"
+  integrity sha512-+Q/9DCCkwHlBiRXZ6MjpW61OW8lVYbdDSNwPv2/8xukqf6egKggWP3ZKl96a7F7+6K1yPdI6Pu+Yuw1Z3JHhTg==
 
 "@effect-ts/tracing-plugin@^0.10.1":
   version "0.10.1"
