@@ -14,11 +14,7 @@ import * as React from "react"
 
 export type AnyRef = unknown
 
-export type QueryResult<E, A> = Initial | Loading | Refreshing<E, A> | Done<E, A>
-
-export class Initial extends Case<{}> {
-  readonly _tag = "Initial"
-}
+export type QueryResult<E, A> = Loading | Refreshing<E, A> | Done<E, A>
 
 export class Loading extends Case<{}> {
   readonly _tag = "Loading"
@@ -137,7 +133,7 @@ export function createApp<R>(): AppEnvironment<R> {
     f: Lazy<Q.Query<R, E, B>>,
     deps?: AnyRef[]
   ): QueryResult<E, B> {
-    const [state, updateState] = React.useState<QueryResult<E, B>>(new Initial())
+    const [state, updateState] = React.useState<QueryResult<E, B>>(new Loading())
 
     useEffect(
       () =>
@@ -148,7 +144,6 @@ export function createApp<R>(): AppEnvironment<R> {
                 matchTag({
                   Done: (_) => new Refreshing({ current: _.current }),
                   Refreshing: (_) => _,
-                  Initial: () => new Loading(),
                   Loading: (_) => _
                 })
               )

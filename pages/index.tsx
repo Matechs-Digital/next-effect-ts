@@ -64,7 +64,6 @@ export function Autocomplete() {
         {nameLength["|>"](
           matchTag({
             Done: (_) => _.current["|>"](renderDone),
-            Initial: () => "N/A",
             Loading: () => "Loading...",
             Refreshing: (_) => `${_.current["|>"](renderDone)} (Loading...)`
           })
