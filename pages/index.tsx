@@ -1,11 +1,13 @@
 import * as T from "@effect-ts/core/Effect"
 import * as S from "@effect-ts/core/Effect/Experimental/Stream"
 import * as L from "@effect-ts/core/Effect/Layer"
-import { identity, pipe } from "@effect-ts/core/Function"
+import type { Either } from "@effect-ts/core/Either"
+import { pipe } from "@effect-ts/core/Function"
 import type { Has } from "@effect-ts/core/Has"
 import { tag } from "@effect-ts/core/Has"
-import * as O from "@effect-ts/core/Option"
 import type { _A } from "@effect-ts/core/Utils"
+import { matchTag } from "@effect-ts/core/Utils"
+import * as Q from "@effect-ts/query/Query"
 import * as React from "react"
 
 import { createApp as createApp } from "../goods/appEnvironmet"
@@ -25,15 +27,26 @@ export const App = createApp<Has<Calculator> & T.DefaultEnv>()
 export function Autocomplete() {
   const [subName, pubName] = App.useHub<string>()
 
-  const [[current, count]] = App.useSubscribe(
-    ["N/A", 0] as const,
-    () =>
-      pipe(
-        subName(),
-        S.map((s) => [s, s.length] as const)
-      ),
-    []
+  const [nameLength, queryNameLength] = App.useQuery((name: string) =>
+    Q.fromEffect(T.succeedWith(() => name.length))
   )
+
+  App.useEffect(() =>
+    pipe(
+      subName(),
+      S.mapM((name) =>
+        T.succeedWith(() => {
+          queryNameLength(name)
+        })
+      ),
+      S.runDrain
+    )
+  )
+
+  const renderDone: (_: Either<never, number>) => string = matchTag({
+    Right: (_) => `${_.right}`,
+    Left: (_) => _.left
+  })
 
   return (
     <div>
@@ -44,8 +57,17 @@ export function Autocomplete() {
           pubName(_.target.value)
         }}
       />
-      <div>Count: {count}</div>
-      <div>Current: {current}</div>
+      <div>
+        Length:
+        {nameLength["|>"](
+          matchTag({
+            Done: (_) => _.current["|>"](renderDone),
+            Initial: () => "N/A",
+            Loading: () => "Loading...",
+            Refreshing: (_) => `${_.current["|>"](renderDone)} (Loading...)`
+          })
+        )}
+      </div>
     </div>
   )
 }

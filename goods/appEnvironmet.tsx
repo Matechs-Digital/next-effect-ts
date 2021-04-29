@@ -1,17 +1,36 @@
-import * as Chunk from "@effect-ts/core/Collections/Immutable/Chunk"
+import { Case } from "@effect-ts/core/Case"
 import * as T from "@effect-ts/core/Effect"
-import * as Ex from "@effect-ts/core/Effect/Exit"
 import * as S from "@effect-ts/core/Effect/Experimental/Stream"
-import * as Channel from "@effect-ts/core/Effect/Experimental/Stream/Channel"
 import * as F from "@effect-ts/core/Effect/Fiber"
 import * as H from "@effect-ts/core/Effect/Hub"
 import * as L from "@effect-ts/core/Effect/Layer"
-import type * as E from "@effect-ts/core/Either"
+import * as E from "@effect-ts/core/Either"
 import type { Lazy } from "@effect-ts/core/Function"
-import { pipe } from "@effect-ts/core/Function"
+import { hole, pipe } from "@effect-ts/core/Function"
+import * as O from "@effect-ts/core/Option"
+import { matchTag } from "@effect-ts/core/Utils"
+import * as Q from "@effect-ts/query/Query"
 import * as React from "react"
 
 export type AnyRef = unknown
+
+export type QueryResult<E, A> = Initial | Loading | Refreshing<E, A> | Done<E, A>
+
+export class Initial extends Case<{}> {
+  readonly _tag = "Initial"
+}
+
+export class Loading extends Case<{}> {
+  readonly _tag = "Loading"
+}
+
+export class Done<E, A> extends Case<{ readonly current: E.Either<E, A> }> {
+  readonly _tag = "Done"
+}
+
+export class Refreshing<E, A> extends Case<{ readonly current: E.Either<E, A> }> {
+  readonly _tag = "Refreshing"
+}
 
 export interface AppEnvironment<R> {
   Provider: React.FC<{
@@ -24,6 +43,9 @@ export interface AppEnvironment<R> {
     subscribe: Lazy<S.Stream<unknown, never, A>>,
     deps?: unknown[] | undefined
   ): [A]
+  useQuery: <E, A, B>(
+    f: (a: A) => Q.Query<R, E, B>
+  ) => [QueryResult<E, B>, (a: A) => void]
 }
 
 export interface ServiceContext<R> {
@@ -66,7 +88,7 @@ export function createApp<R>(): AppEnvironment<R> {
     )
   }
 
-  function useStream<A>(): UseHub<A> {
+  function useHub<A>(): UseHub<A> {
     const deps: never[] = []
     const hub = React.useMemo(() => H.unsafeMakeUnbounded<A>(), deps)
     const subscribe = React.useCallback(() => S.fromHub(hub), deps)
@@ -113,10 +135,52 @@ export function createApp<R>(): AppEnvironment<R> {
     }, deps)
   }
 
+  function useQuery<E, A, B>(
+    f: (a: A) => Q.Query<R, E, B>
+  ): [QueryResult<E, B>, (a: A) => void] {
+    const [state, updateState] = React.useState<QueryResult<E, B>>(new Initial())
+    const [current, updateCurrent] = React.useState(O.emptyOf<A>())
+
+    useEffect(
+      () =>
+        O.isSome(current)
+          ? pipe(
+              T.succeedWith(() => {
+                updateState(
+                  state["|>"](
+                    matchTag({
+                      Done: (_) => new Refreshing({ current: _.current }),
+                      Refreshing: (_) => _,
+                      Initial: () => new Loading(),
+                      Loading: (_) => _
+                    })
+                  )
+                )
+              }),
+              T.zipRight(Q.run(f(current.value))),
+              T.either,
+              T.chain((done) =>
+                T.succeedWith(() => {
+                  updateState((_) => new Done({ current: done }))
+                })
+              )
+            )
+          : T.unit,
+      [current]
+    )
+
+    const cb = React.useCallback((a: A) => {
+      updateCurrent(O.some(a))
+    }, [])
+
+    return [state, cb]
+  }
+
   return {
     Provider,
     useEffect,
-    useHub: useStream,
-    useSubscribe
+    useHub,
+    useSubscribe,
+    useQuery
   }
 }
