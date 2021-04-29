@@ -238,10 +238,10 @@
   resolved "https://registry.yarnpkg.com/@effect-ts/query/-/query-0.18.0.tgz#0b975ae8be647df887085f32594b39aebbda39a6"
   integrity sha512-PVPR1pophgQA1GO+X0vXo/rGQPsGButWEy1A8BdGltN5xs1WdJjwQlQ3C55lOdlkdBJtymOh1YJvNCMv1HDwjA==
 
-"@effect-ts/schema@^0.1.4":
-  version "0.1.4"
-  resolved "https://registry.yarnpkg.com/@effect-ts/schema/-/schema-0.1.4.tgz#3db9b81f669966e7ccd1f57050522fc2235880ee"
-  integrity sha512-7/MKIDFPRUdXPdPIU0lEqb9B/RowpQjTrXE7nZp+7F8BMYpZp7xprTPjlqcpZcBOUiBRACjCBsNynvH4xzKt+Q==
+"@effect-ts/schema@^0.1.5":
+  version "0.1.5"
+  resolved "https://registry.yarnpkg.com/@effect-ts/schema/-/schema-0.1.5.tgz#c7a232a235f1b9de558829b5e113bb15011ba7aa"
+  integrity sha512-9lMTl4HL4ziVYYMyHW1lPDa4DGPV1V1pK1XKD/oxWRIp6JVXU3QhYuECAvThG4pmHfCQmZA+E4wo8Dq+IERe/g==
   dependencies:
     "@effect-ts/core" "^0.37.3"
 
@@ -1686,6 +1686,13 @@ expect@^26.0.0:
     jest-message-util "^26.6.2"
     jest-regex-util "^26.0.0"
 
+fast-check@^2.14.0:
+  version "2.14.0"
+  resolved "https://registry.yarnpkg.com/fast-check/-/fast-check-2.14.0.tgz#13e891977a7cc1ba87aa3883c75053990c02fb21"
+  integrity sha512-4hm0ioyEVCwgjBLBqriwAFYu3/yc7pNH9fBfvzi6JRWRs4R3mwZwrr/d4MHbY0fTBJ0Uakg4TaMAAQ8Cnt2+KQ==
+  dependencies:
+    pure-rand "^4.1.1"
+
 fast-deep-equal@^3.1.1:
   version "3.1.3"
   resolved "https://registry.yarnpkg.com/fast-deep-equal/-/fast-deep-equal-3.1.3.tgz#3a7d56b559d6cbc3eb512325244e619a65c6c525"
@@ -2945,6 +2952,11 @@ punycode@^2.1.0:
   version "2.1.1"
   resolved "https://registry.yarnpkg.com/punycode/-/punycode-2.1.1.tgz#b58b010ac40c22c5657616c8d2c2c02c7bf479ec"
   integrity sha512-XRsRjdf+j5ml+y/6GKHPZbrF/8p2Yga0JPtdqTIY2Xe5ohJPD9saDJJLPvp9+NSBprVvevdXZybnj2cv8OEd0A==
+
+pure-rand@^4.1.1:
+  version "4.1.2"
+  resolved "https://registry.yarnpkg.com/pure-rand/-/pure-rand-4.1.2.tgz#cbad2a3e3ea6df0a8d80d8ba204779b5679a5205"
+  integrity sha512-uLzZpQWfroIqyFWmX/pl0OL2JHJdoU3dbh0dvZ25fChHFJJi56J5oQZhW6QgbT2Llwh1upki84LnTwlZvsungA==
 
 querystring-es3@0.2.1, querystring-es3@^0.2.0:
   version "0.2.1"

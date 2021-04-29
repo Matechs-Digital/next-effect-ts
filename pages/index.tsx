@@ -4,6 +4,7 @@ import * as Chunk from "@effect-ts/core/Collections/Immutable/Chunk"
 import * as T from "@effect-ts/core/Effect"
 import * as L from "@effect-ts/core/Effect/Layer"
 import type { Either } from "@effect-ts/core/Either"
+import { flow } from "@effect-ts/core/Function"
 import type { Has } from "@effect-ts/core/Has"
 import { tag } from "@effect-ts/core/Has"
 import type { _A } from "@effect-ts/core/Utils"
@@ -11,21 +12,10 @@ import { matchTag } from "@effect-ts/core/Utils"
 import * as Q from "@effect-ts/query/Query"
 import * as MO from "@effect-ts/schema"
 import * as Parser from "@effect-ts/schema/Parser"
+import { Schema } from "node:inspector"
 import * as React from "react"
 
-import { createApp as createApp } from "../goods/appEnvironmet"
-
-export const makeCalculator = T.succeedWith(() => {
-  return {
-    add: (x: number, y: number) => T.succeedWith(() => x + y)
-  } as const
-})
-
-export interface Calculator extends _A<typeof makeCalculator> {}
-export const Calculator = tag<Calculator>()
-export const LiveCalculator = L.fromEffect(Calculator)(makeCalculator)
-
-export const App = createApp<Has<Calculator> & T.DefaultEnv>()
+import { createApp } from "../goods/appEnvironmet"
 
 export class HttpError extends Tagged("HttpError")<{
   readonly error: unknown
@@ -59,7 +49,33 @@ const Commit = MO.struct({
 
 const Commits = MO.chunk(Commit)
 
-const parseCommits = Parser.for(Commits)["|>"](MO.condemnFail)
+export class ParseCommitError extends Tagged("ParseCommitError")<{
+  readonly error: MO.CondemnException
+}> {}
+
+const parseCommits = flow(
+  Parser.for(Commits)["|>"](MO.condemnFail),
+  T.mapError((_) => new ParseCommitError({ error: _ }))
+)
+
+export const makeCommitRepo = T.succeedWith(() => {
+  return {
+    getPage: (page: number) =>
+      T.gen(function* (_) {
+        const response = yield* _(
+          httpFetch(`https://api.github.com/repos/Effect-TS/core/commits?page=${page}`)
+        )
+
+        return yield* _(parseCommits(response))
+      })
+  } as const
+})
+
+export interface CommitRepo extends _A<typeof makeCommitRepo> {}
+export const CommitRepo = tag<CommitRepo>()
+export const LiveCommitRepo = L.fromEffect(CommitRepo)(makeCommitRepo)
+
+export const App = createApp<Has<CommitRepo> & T.DefaultEnv>()
 
 export function Autocomplete() {
   const [page, setPage] = React.useState(0)
@@ -67,31 +83,33 @@ export function Autocomplete() {
   const commits = App.useQuery(
     () =>
       Q.gen(function* (_) {
-        const response = yield* _(
-          httpFetch(`https://api.github.com/repos/Effect-TS/core/commits?page=${page}`)
-        )
+        const { getPage } = yield* _(CommitRepo)
 
-        return yield* _(parseCommits(response))
+        return yield* _(getPage(page))
       }),
     [page]
   )
 
   const renderDone: (
-    _: Either<HttpError | MO.CondemnException, MO.ParsedShapeOf<typeof Commits>>
+    _: Either<HttpError | ParseCommitError, MO.ParsedShapeOf<typeof Commits>>
   ) => JSX.Element = matchTag({
     Right: (_) => (
       <div>
-        {Chunk.map_(_.right, (_) => (
-          <p>{_.commit.message}</p>
-        ))}
+        {pipe(
+          _.right,
+          Chunk.zipWithIndex,
+          Chunk.map(({ tuple: [{ commit: { message } }, i] }) => (
+            <p key={i}>{message}</p>
+          ))
+        )}
       </div>
     ),
     Left: (_) =>
       _.left["|>"](
         matchTag({
-          CondemnException: (_) => (
+          ParseCommitError: (_) => (
             <div>
-              {_.message.split("\n").map((s) => (
+              {_.error.message.split("\n").map((s) => (
                 <>
                   {s}
                   <br />
@@ -128,7 +146,7 @@ export function Autocomplete() {
 
 function Home() {
   return (
-    <App.Provider layer={LiveCalculator["+++"](L.identity<T.DefaultEnv>())}>
+    <App.Provider layer={LiveCommitRepo["+++"](L.identity<T.DefaultEnv>())}>
       <Autocomplete />
     </App.Provider>
   )
