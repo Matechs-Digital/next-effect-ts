@@ -59,7 +59,7 @@ export interface App<R> {
     initial: A,
     subscribe: Lazy<S.Stream<unknown, never, A>>,
     deps: AnyRef[]
-  ): [A]
+  ): A
   useQuery: <A extends unknown[], E, B>(
     f: (...args: A) => Q.Query<R, E, B>,
     ...args: A
@@ -159,7 +159,7 @@ export function createApp<R extends T.DefaultEnv>(): App<R> {
     initial: A,
     subscribe: Lazy<S.Stream<unknown, never, A>>,
     deps?: AnyRef[]
-  ): [A] {
+  ): A {
     const [state, updateState] = React.useState(initial)
     useEffect(
       () =>
@@ -179,7 +179,7 @@ export function createApp<R extends T.DefaultEnv>(): App<R> {
         ),
       deps
     )
-    return [state]
+    return state
   }
 
   function useEffect(self: Lazy<T.RIO<R, void>>, deps?: AnyRef[]) {

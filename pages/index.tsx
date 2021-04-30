@@ -19,19 +19,34 @@ import { serverRuntime } from "../src/Server"
 //
 
 export function ArtworkView({ url }: { url: string }) {
-  const commit = App.useQuery(getArtwork, url)
+  const artwork = App.useQuery(getArtwork, url)
 
-  return <div>{JSON.stringify(commit)}</div>
+  return (
+    <div>
+      {artwork["|>"](
+        matchTag({
+          Done: (_) =>
+            _.current["|>"](
+              matchTag({
+                Left: (_) => <div>Error...</div>,
+                Right: (_) => <div>{_.right.data.title}</div>
+              })
+            ),
+          Loading: (_) => <div>Loading...</div>,
+          Refreshing: () => <div>Loading...</div>
+        })
+      )}
+    </div>
+  )
 }
 
 export function ArtworksView() {
   const [page, setPage] = React.useState(1)
-
-  const commits = App.useQuery(getArtworks, page)
+  const artworks = App.useQuery(getArtworks, page)
 
   return (
     <div>
-      {commits["|>"](
+      {artworks["|>"](
         matchTag({
           Loading: () => <div>Loading...</div>,
           Refreshing: (_) => <div>Loading...</div>,
