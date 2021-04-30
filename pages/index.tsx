@@ -101,21 +101,18 @@ export const parseArtwork = flow(
 //
 
 export const makeArtworkRepo = T.succeedWith(() => {
+  function getArtworks(page: number) {
+    return pipe(
+      httpFetch(`https://api.artic.edu/api/v1/artworks?page=${page}`),
+      T.chain(parseArtworks)
+    )
+  }
+  function getArtwork(url: string) {
+    return pipe(httpFetch(url), T.chain(parseArtwork))
+  }
   return {
-    getArtworks: (page: number) =>
-      T.gen(function* (_) {
-        const response = yield* _(
-          httpFetch(`https://api.artic.edu/api/v1/artworks?page=${page}`)
-        )
-
-        return yield* _(parseArtworks(response))
-      }),
-    getArtwork: (url: string) =>
-      T.gen(function* (_) {
-        const response = yield* _(httpFetch(url))
-
-        return yield* _(parseArtwork(response))
-      })
+    getArtworks,
+    getArtwork
   } as const
 })
 
