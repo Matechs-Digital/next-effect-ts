@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@effect-ts/core": "^0.37.3",
-    "@effect-ts/query": "^0.18.0",
+    "@effect-ts/query": "^0.18.2",
     "@effect-ts/schema": "^0.1.9",
     "next": "10.2.0",
     "react": "17.0.2",

@@ -233,10 +233,10 @@
   dependencies:
     "@effect-ts/system" "^0.34.3"
 
-"@effect-ts/query@^0.18.0":
-  version "0.18.0"
-  resolved "https://registry.yarnpkg.com/@effect-ts/query/-/query-0.18.0.tgz#0b975ae8be647df887085f32594b39aebbda39a6"
-  integrity sha512-PVPR1pophgQA1GO+X0vXo/rGQPsGButWEy1A8BdGltN5xs1WdJjwQlQ3C55lOdlkdBJtymOh1YJvNCMv1HDwjA==
+"@effect-ts/query@^0.18.2":
+  version "0.18.2"
+  resolved "https://registry.yarnpkg.com/@effect-ts/query/-/query-0.18.2.tgz#aac5130b1ded84f3b0124d716c866a6f3d8bdbc8"
+  integrity sha512-YO8KvUI0hF2lT+rsEQBBujnJRPUvGlawjBLtTC9bxXSsFy2k8sZn3vCQPKW7Qzys2GDZsb+P67KV19hDN8iSHQ==
 
 "@effect-ts/schema@^0.1.9":
   version "0.1.9"
