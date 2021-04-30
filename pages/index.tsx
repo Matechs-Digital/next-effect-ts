@@ -16,7 +16,7 @@ import * as MO from "@effect-ts/schema"
 import * as Parser from "@effect-ts/schema/Parser"
 import * as React from "react"
 
-import { appDS, createApp } from "../goods/appEnvironmet"
+import { appDataSource, createApp } from "../goods/appEnvironmet"
 
 export class HttpError extends Tagged("HttpError")<{
   readonly error: unknown
@@ -127,7 +127,7 @@ export class GetArtwork extends Req.Static<
   readonly _tag = "GetArtwork"
 }
 
-const artic = DS.makeBatched("Github")(
+const articMuseumDS = DS.makeBatched("ArticMuseum")(
   (requests: Chunk.Chunk<GetArtworks | GetArtwork>) =>
     T.gen(function* (_) {
       const { getArtwork, getArtworks } = yield* _(ArtworkRepo)
@@ -159,14 +159,14 @@ const artic = DS.makeBatched("Github")(
       )
       return Chunk.reduce_(results, CRM.empty, CRM.concat)
     })
-)["|>"](appDS)
+)["|>"](appDataSource)
 
 function getArtwork(url: string) {
-  return Q.fromRequest(new GetArtwork({ url }), artic)
+  return Q.fromRequest(new GetArtwork({ url }), articMuseumDS)
 }
 
 function getArtworks(page: number) {
-  return Q.fromRequest(new GetArtworks({ page }), artic)
+  return Q.fromRequest(new GetArtworks({ page }), articMuseumDS)
 }
 
 export function ArtworkView({ url }: { url: string }) {
@@ -245,9 +245,9 @@ export function ArtworksView() {
 function Home() {
   return (
     <App.Provider layer={LiveArtworkRepo["+++"](L.identity<T.DefaultEnv>())}>
-      <App.Ticker sources={[artic]}>
+      <App.DataSourceProvider sources={[articMuseumDS]}>
         <ArtworksView />
-      </App.Ticker>
+      </App.DataSourceProvider>
     </App.Provider>
   )
 }

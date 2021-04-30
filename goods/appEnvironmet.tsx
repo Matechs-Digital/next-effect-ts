@@ -38,7 +38,7 @@ export interface AppEnvironment<R> {
   Provider: React.FC<{
     layer: L.Layer<T.DefaultEnv, never, R>
   }>
-  Ticker: React.FC<{ sources: Iterable<Ticked<R, any>> }>
+  DataSourceProvider: React.FC<{ sources: Iterable<Ticked<R, any>> }>
   useEffect: (self: Lazy<T.RIO<R, void>>, deps: AnyRef[]) => void
   useHub<A>(): UseHub<A>
   useSubscribe<A>(
@@ -170,7 +170,7 @@ export function createApp<R extends T.DefaultEnv>(): AppEnvironment<R> {
     return state
   }
 
-  const Ticker: React.FC<{ sources: Iterable<Ticked<R, any>> }> = ({
+  const DataSourceProvider: React.FC<{ sources: Iterable<Ticked<R, any>> }> = ({
     children,
     sources
   }) => {
@@ -186,7 +186,7 @@ export function createApp<R extends T.DefaultEnv>(): AppEnvironment<R> {
 
   return {
     Provider,
-    Ticker,
+    DataSourceProvider,
     useEffect,
     useHub,
     useSubscribe,
@@ -261,6 +261,8 @@ class Ticked<R, A extends Req.Request<any, any>> extends DS.DataSource<R, A> {
   )
 }
 
-export function appDS<R, A extends Req.Request<any, any>>(ds: DS.DataSource<R, A>) {
+export function appDataSource<R, A extends Req.Request<any, any>>(
+  ds: DS.DataSource<R, A>
+) {
   return new Ticked(ds)
 }
