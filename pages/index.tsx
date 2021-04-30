@@ -52,13 +52,15 @@ const ArtworkEntry = MO.struct({
   }
 })
 
-const Artworks = MO.struct({
+const Artworks_ = MO.struct({
   required: {
     data: MO.chunk(ArtworkEntry)
   }
 })
+interface Artworks extends MO.ParsedShapeOf<typeof Artworks_> {}
+const Artworks = MO.opaque<Artworks>()(Artworks_)
 
-const Artwork = MO.struct({
+const Artwork_ = MO.struct({
   required: {
     data: MO.struct({
       required: {
@@ -67,6 +69,8 @@ const Artwork = MO.struct({
     })
   }
 })
+interface Artwork extends MO.ParsedShapeOf<typeof Artwork_> {}
+const Artwork = MO.opaque<Artwork>()(Artwork_)
 
 export class ParseArtworksError extends Tagged("ParseArtworksError")<{
   readonly error: MO.CondemnException
