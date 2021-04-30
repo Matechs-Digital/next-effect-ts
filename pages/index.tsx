@@ -7,7 +7,7 @@ import { flow } from "@effect-ts/core/Function"
 import type { Has } from "@effect-ts/core/Has"
 import { tag } from "@effect-ts/core/Has"
 import type { _A } from "@effect-ts/core/Utils"
-import { matchTag } from "@effect-ts/core/Utils"
+import { intersect, matchTag } from "@effect-ts/core/Utils"
 import * as CRM from "@effect-ts/query/CompletedRequestMap"
 import * as DS from "@effect-ts/query/DataSource"
 import * as Q from "@effect-ts/query/Query"
@@ -115,7 +115,7 @@ export const parseArtwork = flow(
 // Repositories
 //
 
-export const makeArtworkRepo = T.succeedWith(() => {
+export function makeArtworkRepo() {
   function getArtworks(page: number) {
     return pipe(
       httpFetch(`https://api.artic.edu/api/v1/artworks?page=${page}`),
@@ -129,11 +129,11 @@ export const makeArtworkRepo = T.succeedWith(() => {
     getArtworks,
     getArtwork
   } as const
-})
+}
 
-export interface ArtworkRepo extends _A<typeof makeArtworkRepo> {}
+export interface ArtworkRepo extends ReturnType<typeof makeArtworkRepo> {}
 export const ArtworkRepo = tag<ArtworkRepo>()
-export const LiveArtworkRepo = L.fromEffect(ArtworkRepo)(makeArtworkRepo)
+export const LiveArtworkRepo = L.fromEffect(ArtworkRepo)(T.succeedWith(makeArtworkRepo))
 
 //
 // Requests
@@ -340,6 +340,14 @@ function Home({ initial }: { initial: string }) {
   )
 }
 
+const serverRuntime = T.defaultRuntime.withEnvironment((defEnv) =>
+  intersect(
+    defEnv,
+    ArtworkRepo.of(makeArtworkRepo()),
+    ArtworkDataSource.of({ artworkDataSource })
+  )
+)
+
 export async function getServerSideProps() {
   const initial = await pipe(
     Q.gen(function* (_) {
@@ -347,9 +355,7 @@ export async function getServerSideProps() {
       yield* _(Q.collectAllPar(Chunk.map_(page.data, (_) => getArtwork(_.api_link))))
     }),
     App.collectPrefetch,
-    T.provideServiceM(ArtworkRepo)(makeArtworkRepo),
-    T.provideService(ArtworkDataSource)({ artworkDataSource }),
-    T.runPromise
+    serverRuntime.runPromise
   )
   return {
     props: {
