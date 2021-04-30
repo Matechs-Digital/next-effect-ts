@@ -71,7 +71,7 @@ export interface AppEnvironment<R> {
     model: Self,
     key: (...args: A) => string
   ) => CacheCodec<A, E, MO.ParsedShapeOf<Self>>
-  collectPrefetch: <R, E, A>(query: Q.Query<R, E, A>) => T.Effect<R, E, string>
+  collectPrefetch: <R, E, A>(query: Q.Query<R, E, A>) => T.Effect<R, never, string>
   hydrate: (initial?: string | undefined) => void
 }
 
@@ -264,11 +264,13 @@ export function createApp<R extends T.DefaultEnv>(): AppEnvironment<R> {
     return f
   }
 
-  function collectPrefetch<R, E, A>(query: Q.Query<R, E, A>): T.Effect<R, E, string> {
+  function collectPrefetch<R, E, A>(
+    query: Q.Query<R, E, A>
+  ): T.Effect<R, never, string> {
     return Q.run(
       Q.chain_(Q.fromEffect(T.succeedWith(() => ({}))), (map) =>
         Q.map_(
-          Q.provideSome_(query, "CollectPrefetch", (r: R) => ({
+          Q.provideSome_(Q.either(query), "CollectPrefetch", (r: R) => ({
             ...r,
             [prefetchSymbol]: {
               map
