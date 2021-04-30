@@ -238,10 +238,10 @@
   resolved "https://registry.yarnpkg.com/@effect-ts/query/-/query-0.18.0.tgz#0b975ae8be647df887085f32594b39aebbda39a6"
   integrity sha512-PVPR1pophgQA1GO+X0vXo/rGQPsGButWEy1A8BdGltN5xs1WdJjwQlQ3C55lOdlkdBJtymOh1YJvNCMv1HDwjA==
 
-"@effect-ts/schema@^0.1.5":
-  version "0.1.5"
-  resolved "https://registry.yarnpkg.com/@effect-ts/schema/-/schema-0.1.5.tgz#c7a232a235f1b9de558829b5e113bb15011ba7aa"
-  integrity sha512-9lMTl4HL4ziVYYMyHW1lPDa4DGPV1V1pK1XKD/oxWRIp6JVXU3QhYuECAvThG4pmHfCQmZA+E4wo8Dq+IERe/g==
+"@effect-ts/schema@^0.1.8":
+  version "0.1.8"
+  resolved "https://registry.yarnpkg.com/@effect-ts/schema/-/schema-0.1.8.tgz#619bb12f2c3e3961782e38eec21e6df01bde7806"
+  integrity sha512-kMdEtejlxzqyA4joxCoqmPN5Lb1bU8kvHc/UbnoFaio+p9jaZByVq3ajaBLUaNMRvnyVC8Y7H23lsj0KwID29g==
   dependencies:
     "@effect-ts/core" "^0.37.3"
 
@@ -3788,10 +3788,10 @@ webpack-sources@^2.1.1:
     source-list-map "^2.0.1"
     source-map "^0.6.1"
 
-webpack@^5.36.1:
-  version "5.36.1"
-  resolved "https://registry.yarnpkg.com/webpack/-/webpack-5.36.1.tgz#d82bad3384f84ed45a8de3844c31730f56361ab7"
-  integrity sha512-2u25a82T+6quAxSlzEpN/R/RICwt20ONU3z3Ko05S8KVH9FXILcBYb2hD/rQtZT5y7lRAIsIIs05pdndY7ourQ==
+webpack@^5.36.2:
+  version "5.36.2"
+  resolved "https://registry.yarnpkg.com/webpack/-/webpack-5.36.2.tgz#6ef1fb2453ad52faa61e78d486d353d07cca8a0f"
+  integrity sha512-XJumVnnGoH2dV+Pk1VwgY4YT6AiMKpVoudUFCNOXMIVrEKPUgEwdIfWPjIuGLESAiS8EdIHX5+TiJz/5JccmRg==
   dependencies:
     "@types/eslint-scope" "^3.7.0"
     "@types/estree" "^0.0.47"

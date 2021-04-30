@@ -1,6 +1,7 @@
 import { pipe } from "@effect-ts/core"
 import { Case } from "@effect-ts/core/Case"
 import * as Chunk from "@effect-ts/core/Collections/Immutable/Chunk"
+import type { Tuple } from "@effect-ts/core/Collections/Immutable/Tuple"
 import * as Tp from "@effect-ts/core/Collections/Immutable/Tuple"
 import * as T from "@effect-ts/core/Effect"
 import * as S from "@effect-ts/core/Effect/Experimental/Stream"
@@ -11,11 +12,16 @@ import * as Prom from "@effect-ts/core/Effect/Promise"
 import * as Queue from "@effect-ts/core/Effect/Queue"
 import * as E from "@effect-ts/core/Either"
 import type { Lazy } from "@effect-ts/core/Function"
+import type { Option } from "@effect-ts/core/Option"
+import * as O from "@effect-ts/core/Option"
 import { matchTag } from "@effect-ts/core/Utils"
 import * as CRM from "@effect-ts/query/CompletedRequestMap"
 import * as DS from "@effect-ts/query/DataSource"
 import * as Q from "@effect-ts/query/Query"
 import type * as Req from "@effect-ts/query/Request"
+import * as MO from "@effect-ts/schema"
+import * as Encoder from "@effect-ts/schema/Encoder"
+import * as Parser from "@effect-ts/schema/Parser"
 import * as React from "react"
 
 export type AnyRef = unknown
@@ -34,11 +40,18 @@ export class Refreshing<E, A> extends Case<{ readonly current: E.Either<E, A> }>
   readonly _tag = "Refreshing"
 }
 
+export interface CacheCodec<A extends readonly unknown[], E, B> {
+  to: (args: A, res: E.Either<E, B>) => Option<Tuple<[string, string]>>
+  from: (args: A, map: Record<string, string>) => Option<E.Either<E, B>>
+}
+
 export interface AppEnvironment<R> {
   Provider: React.FC<{
     layer: L.Layer<T.DefaultEnv, never, R>
+    initial?: string
+    sources: Iterable<Ticked<R, any>>
   }>
-  DataSourceProvider: React.FC<{ sources: Iterable<Ticked<R, any>> }>
+
   useEffect: (self: Lazy<T.RIO<R, void>>, deps: AnyRef[]) => void
   useHub<A>(): UseHub<A>
   useSubscribe<A>(
@@ -46,7 +59,20 @@ export interface AppEnvironment<R> {
     subscribe: Lazy<S.Stream<unknown, never, A>>,
     deps: AnyRef[]
   ): [A]
-  useQuery: <E, B>(f: Lazy<Q.Query<R, E, B>>, deps: AnyRef[]) => QueryResult<E, B>
+  useQuery: <A extends unknown[], E, B>(
+    f: (...args: A) => Q.Query<R, E, B>,
+    ...args: A
+  ) => QueryResult<E, B>
+  query: <A extends unknown[], E, B>(
+    f: (...args: A) => Q.Query<R, E, B>,
+    cache?: CacheCodec<A, E, B>
+  ) => (...args: A) => Q.Query<R, E, B>
+  querySuccessCodec: <A extends readonly unknown[], E, Self extends MO.SchemaUPI>(
+    model: Self,
+    key: (...args: A) => string
+  ) => CacheCodec<A, E, MO.ParsedShapeOf<Self>>
+  collectPrefetch: <R, E, A>(query: Q.Query<R, E, A>) => T.Effect<R, E, string>
+  hydrate: (initial?: string | undefined) => void
 }
 
 export interface ServiceContext<R> {
@@ -54,6 +80,18 @@ export interface ServiceContext<R> {
 }
 
 export type UseHub<A> = [Lazy<S.Stream<unknown, never, A>>, (a: A) => void]
+
+export const prefetchSymbol = Symbol.for("@effect-ts/react/query/prefetch")
+
+export interface PrefetchContext {
+  [prefetchSymbol]: {
+    map: Record<string, string>
+  }
+}
+
+export function isPrefetchContext(u: unknown): u is PrefetchContext {
+  return typeof u === "object" && u != null && prefetchSymbol in u
+}
 
 export function createApp<R extends T.DefaultEnv>(): AppEnvironment<R> {
   const MissingContext = T.die(
@@ -64,10 +102,28 @@ export function createApp<R extends T.DefaultEnv>(): AppEnvironment<R> {
     provide: () => MissingContext
   })
 
-  const Provider: React.FC<{ layer: L.Layer<T.DefaultEnv, never, R> }> = ({
+  const queries = new Map()
+
+  let cache: {} | undefined = undefined
+
+  const DataSourceProvider: React.FC<{ sources: Iterable<Ticked<R, any>> }> = ({
     children,
-    layer
+    sources
   }) => {
+    useEffect(
+      () =>
+        T.forever(
+          T.forEach_(sources, ({ tick }) => T.fork(tick))["|>"](T.zipRight(T.sleep(0)))
+        )["|>"](T.awaitAllChildren),
+      []
+    )
+    return <>{children}</>
+  }
+
+  const Provider: React.FC<{
+    layer: L.Layer<T.DefaultEnv, never, R>
+    sources: Iterable<Ticked<R, any>>
+  }> = ({ children, layer, sources }) => {
     const provider = React.useMemo(() => L.unsafeMainProvider(layer), [])
 
     React.useEffect(() => {
@@ -79,12 +135,8 @@ export function createApp<R extends T.DefaultEnv>(): AppEnvironment<R> {
     }, [])
 
     return (
-      <ServiceContext.Provider
-        value={{
-          provide: provider.provide
-        }}
-      >
-        {children}
+      <ServiceContext.Provider value={{ provide: provider.provide }}>
+        <DataSourceProvider sources={sources}>{children}</DataSourceProvider>
       </ServiceContext.Provider>
     )
   }
@@ -136,61 +188,148 @@ export function createApp<R extends T.DefaultEnv>(): AppEnvironment<R> {
     }, deps)
   }
 
-  function useQuery<E, B>(
-    f: Lazy<Q.Query<R, E, B>>,
-    deps?: AnyRef[]
+  function initial<A extends unknown[], E, B>(
+    f: (...args: A) => Q.Query<R, E, B>,
+    args: A
   ): QueryResult<E, B> {
-    const [state, updateState] = React.useState<QueryResult<E, B>>(new Loading())
+    if (queries.has(f) && cache) {
+      const codecCache = queries.get(f) as CacheCodec<any, any, any>
+      const cached = codecCache.from(args, cache)
+      if (cached._tag === "Some") {
+        return new Done({ current: cached.value })
+      }
+    }
+    return new Loading()
+  }
 
-    useEffect(
-      () =>
-        pipe(
-          T.succeedWith(() => {
-            updateState(
-              state["|>"](
-                matchTag({
-                  Done: (_) => new Refreshing({ current: _.current }),
-                  Refreshing: (_) => _,
-                  Loading: (_) => _
-                })
-              )
+  function useQuery<A extends unknown[], E, B>(
+    f: (...args: A) => Q.Query<R, E, B>,
+    ...args: A
+  ): QueryResult<E, B> {
+    const cnt = React.useRef(0)
+    const [state, updateState] = React.useState<QueryResult<E, B>>(initial(f, args))
+
+    useEffect(() => {
+      cnt.current = cnt.current + 1
+      if (cnt.current === 1 && state._tag === "Done") {
+        return T.unit
+      }
+      return pipe(
+        T.succeedWith(() => {
+          updateState(
+            state["|>"](
+              matchTag({
+                Done: (_) => new Refreshing({ current: _.current }),
+                Refreshing: (_) => _,
+                Loading: (_) => _
+              })
             )
-          }),
-          T.zipRight(T.suspend(() => Q.run(f()))),
-          T.either,
-          T.chain((done) =>
-            T.succeedWith(() => {
-              updateState((_) => new Done({ current: done }))
-            })
           )
-        ),
-      deps
-    )
+        }),
+        T.zipRight(T.suspend(() => Q.run(f(...args)))),
+        T.either,
+        T.chain((done) =>
+          T.succeedWith(() => {
+            updateState((_) => new Done({ current: done }))
+          })
+        )
+      )
+    }, args)
 
     return state
   }
 
-  const DataSourceProvider: React.FC<{ sources: Iterable<Ticked<R, any>> }> = ({
-    children,
-    sources
-  }) => {
-    useEffect(
-      () =>
-        T.forever(
-          T.forEach_(sources, ({ tick }) => T.fork(tick))["|>"](T.zipRight(T.sleep(0)))
-        )["|>"](T.awaitAllChildren),
-      []
+  function query<A extends unknown[], E, B>(
+    f: (...args: A) => Q.Query<R, E, B>,
+    cacheCodec?: CacheCodec<A, E, B>
+  ) {
+    if (cacheCodec) {
+      const patched = (...args: A) =>
+        Q.chain_(Q.fromEffect(T.environment()), (env) =>
+          isPrefetchContext(env)
+            ? Q.chain_(Q.either(f(...args)), (res) => {
+                const toMap = cacheCodec.to(args, res)
+                if (toMap._tag === "Some") {
+                  env[prefetchSymbol].map[toMap.value.get(0)] = toMap.value.get(1)
+                }
+                return Q.fromEither(res)
+              })
+            : f(...args)
+        )
+
+      queries.set(patched, cacheCodec)
+
+      return patched
+    }
+    return f
+  }
+
+  function collectPrefetch<R, E, A>(query: Q.Query<R, E, A>): T.Effect<R, E, string> {
+    return Q.run(
+      Q.chain_(Q.fromEffect(T.succeedWith(() => ({}))), (map) =>
+        Q.map_(
+          Q.provideSome_(query, "CollectPrefetch", (r: R) => ({
+            ...r,
+            [prefetchSymbol]: {
+              map
+            }
+          })),
+          () => JSON.stringify(map)
+        )
+      )
     )
-    return <>{children}</>
+  }
+
+  function querySuccessCodec<
+    A extends readonly unknown[],
+    E,
+    Self extends MO.SchemaUPI
+  >(
+    model: Self,
+    key: (...args: A) => string
+  ): CacheCodec<A, E, MO.ParsedShapeOf<Self>> {
+    return {
+      from: (args, map) => fromCache(map, key(...args), model),
+      to: (args, res) => toCache(model, key(...args), res)
+    }
+  }
+
+  function toCache<E, Self extends MO.SchemaUPI>(
+    model: Self,
+    key: string,
+    res: E.Either<E, MO.ParsedShapeOf<Self>>
+  ): O.Option<Tp.Tuple<[string, string]>> {
+    return res._tag === "Right"
+      ? O.some(Tp.tuple(key, JSON.stringify(Encoder.for(model)(res.right))))
+      : O.none
+  }
+
+  function fromCache<E, Self extends MO.SchemaUPI>(
+    map: Record<string, string>,
+    key: string,
+    model: Self
+  ): O.Option<E.Either<E, MO.ParsedShapeOf<Self>>> {
+    return map[key]
+      ? pipe(JSON.parse(map[key]!), Parser.for(model)["|>"](MO.unsafe), E.right, O.some)
+      : O.none
+  }
+
+  function hydrate(initial?: string) {
+    if (initial) {
+      cache = JSON.parse(initial)
+    }
   }
 
   return {
     Provider,
-    DataSourceProvider,
     useEffect,
     useHub,
     useSubscribe,
-    useQuery
+    useQuery,
+    query,
+    querySuccessCodec,
+    collectPrefetch,
+    hydrate
   }
 }
 
@@ -261,7 +400,7 @@ class Ticked<R, A extends Req.Request<any, any>> extends DS.DataSource<R, A> {
   )
 }
 
-export function appDataSource<R, A extends Req.Request<any, any>>(
+export function clientDataSource<R, A extends Req.Request<any, any>>(
   ds: DS.DataSource<R, A>
 ) {
   return new Ticked(ds)

@@ -16,7 +16,7 @@ import * as MO from "@effect-ts/schema"
 import * as Parser from "@effect-ts/schema/Parser"
 import * as React from "react"
 
-import { appDataSource, createApp } from "../goods/appEnvironmet"
+import { clientDataSource, createApp } from "../goods/appEnvironmet"
 
 //
 // Http Utilities
@@ -27,11 +27,20 @@ export class HttpError extends Tagged("HttpError")<{
 }> {}
 
 export function httpFetch(input: RequestInfo, init?: Omit<RequestInit, "signal">) {
+  if (typeof AbortController === "undefined") {
+    return T.tryCatchPromise(
+      () =>
+        fetch(input, init)
+          .then((data): Promise<unknown> => data.json())
+          .then(),
+      (error) => new HttpError({ error })
+    )
+  }
   return T.effectAsyncInterrupt<unknown, HttpError, unknown>((cb) => {
-    const cotroller = new AbortController()
+    const controller = new AbortController()
 
     fetch(input, {
-      signal: cotroller.signal,
+      signal: controller.signal,
       ...init
     })
       .then((data): Promise<unknown> => data.json())
@@ -45,7 +54,7 @@ export function httpFetch(input: RequestInfo, init?: Omit<RequestInit, "signal">
       )
 
     return T.succeedWith(() => {
-      cotroller.abort()
+      controller.abort()
     })
   })
 }
@@ -54,25 +63,31 @@ export function httpFetch(input: RequestInfo, init?: Omit<RequestInit, "signal">
 // Domain
 //
 
-export const ArtworkEntry_ = MO.required({
-  api_link: MO.string
-})
-export interface ArtworkEntry extends MO.ParsedShapeOf<typeof ArtworkEntry_> {}
-export const ArtworkEntry = MO.opaque<ArtworkEntry>()(ArtworkEntry_)
-
-export const Artworks_ = MO.required({
-  data: MO.chunk(ArtworkEntry)
-})
-export interface Artworks extends MO.ParsedShapeOf<typeof Artworks_> {}
-export const Artworks = MO.opaque<Artworks>()(Artworks_)
-
-export const Artwork_ = MO.required({
-  data: MO.required({
-    title: MO.string
+export class ArtworkEntry extends MO.Schemed(
+  MO.required({
+    api_link: MO.string
   })
-})
-export interface Artwork extends MO.ParsedShapeOf<typeof Artwork_> {}
-export const Artwork = MO.opaque<Artwork>()(Artwork_)
+) {
+  static Model = MO.schema(ArtworkEntry)
+}
+
+export class Artworks extends MO.Schemed(
+  MO.required({
+    data: MO.chunk(ArtworkEntry.Model)
+  })
+) {
+  static Model = MO.schema(Artworks)
+}
+
+export class Artwork extends MO.Schemed(
+  MO.required({
+    data: MO.required({
+      title: MO.string
+    })
+  })
+) {
+  static Model = MO.schema(Artwork)
+}
 
 //
 // Decoders
@@ -83,7 +98,7 @@ export class ParseArtworksError extends Tagged("ParseArtworksError")<{
 }> {}
 
 export const parseArtworks = flow(
-  Parser.for(Artworks)["|>"](MO.condemnFail),
+  Parser.for(Artworks.Model)["|>"](MO.condemnFail),
   T.mapError((_) => new ParseArtworksError({ error: _ }))
 )
 
@@ -92,7 +107,7 @@ export class ParseArtworkError extends Tagged("ParseArtworkError")<{
 }> {}
 
 export const parseArtwork = flow(
-  Parser.for(Artwork)["|>"](MO.condemnFail),
+  Parser.for(Artwork.Model)["|>"](MO.condemnFail),
   T.mapError((_) => new ParseArtworkError({ error: _ }))
 )
 
@@ -120,8 +135,6 @@ export interface ArtworkRepo extends _A<typeof makeArtworkRepo> {}
 export const ArtworkRepo = tag<ArtworkRepo>()
 export const LiveArtworkRepo = L.fromEffect(ArtworkRepo)(makeArtworkRepo)
 
-export const App = createApp<Has<ArtworkRepo> & T.DefaultEnv>()
-
 //
 // Requests
 //
@@ -129,7 +142,7 @@ export const App = createApp<Has<ArtworkRepo> & T.DefaultEnv>()
 export class GetArtworks extends Req.Static<
   { readonly page: number },
   HttpError | ParseArtworksError,
-  MO.ParsedShapeOf<typeof Artworks>
+  Artworks
 > {
   readonly _tag = "GetArtworks"
 }
@@ -137,7 +150,7 @@ export class GetArtworks extends Req.Static<
 export class GetArtwork extends Req.Static<
   { readonly url: string },
   HttpError | ParseArtworkError,
-  MO.ParsedShapeOf<typeof Artwork>
+  Artwork
 > {
   readonly _tag = "GetArtwork"
 }
@@ -146,16 +159,10 @@ export class GetArtwork extends Req.Static<
 // Data Sources
 //
 
-export const articMuseumDS = DS.makeBatched("ArticMuseum")(
+export const artworkDataSource = DS.makeBatched("ArticMuseum")(
   (requests: Chunk.Chunk<GetArtworks | GetArtwork>) =>
     T.gen(function* (_) {
       const { getArtwork, getArtworks } = yield* _(ArtworkRepo)
-
-      yield* _(
-        T.succeedWith(() => {
-          console.log(`processing ${requests.length} requests`)
-        })
-      )
 
       let crm = CRM.empty
 
@@ -189,26 +196,51 @@ export const articMuseumDS = DS.makeBatched("ArticMuseum")(
 
       return crm
     })
-)["|>"](appDataSource)
+)
 
-//
-// Queries
-//
+export const artworkClientDataSource = artworkDataSource["|>"](clientDataSource)
 
-export function getArtwork(url: string) {
-  return Q.fromRequest(new GetArtwork({ url }), articMuseumDS)
-}
+export const makeArtworkClientDataSource = T.succeedWith(() => {
+  return {
+    artworkDataSource: artworkClientDataSource as DS.DataSource<
+      Has<ArtworkRepo>,
+      GetArtworks | GetArtwork
+    >
+  }
+})
 
-export function getArtworks(page: number) {
-  return Q.fromRequest(new GetArtworks({ page }), articMuseumDS)
-}
+export interface ArtworkDataSource extends _A<typeof makeArtworkClientDataSource> {}
+export const ArtworkDataSource = tag<ArtworkDataSource>()
+export const ClientArtworkDataSource = L.fromEffect(ArtworkDataSource)(
+  makeArtworkClientDataSource
+)
+
+export const App = createApp<Has<ArtworkRepo> & Has<ArtworkDataSource> & T.DefaultEnv>()
+
+export const getArtwork = App.query(
+  (url: string) =>
+    Q.gen(function* (_) {
+      const { artworkDataSource } = yield* _(ArtworkDataSource)
+      return yield* _(Q.fromRequest(new GetArtwork({ url }), artworkDataSource))
+    }),
+  App.querySuccessCodec(Artwork.Model, (url) => `getArtwork(${url})`)
+)
+
+export const getArtworks = App.query(
+  (page: number) =>
+    Q.gen(function* (_) {
+      const { artworkDataSource } = yield* _(ArtworkDataSource)
+      return yield* _(Q.fromRequest(new GetArtworks({ page }), artworkDataSource))
+    }),
+  App.querySuccessCodec(Artworks.Model, (page) => `getArtworks(${page})`)
+)
 
 //
 // Components
 //
 
 export function ArtworkView({ url }: { url: string }) {
-  const commit = App.useQuery(() => getArtwork(url), [url])
+  const commit = App.useQuery(getArtwork, url)
 
   return <div>{JSON.stringify(commit)}</div>
 }
@@ -216,7 +248,7 @@ export function ArtworkView({ url }: { url: string }) {
 export function ArtworksView() {
   const [page, setPage] = React.useState(1)
 
-  const commits = App.useQuery(() => getArtworks(page), [page])
+  const commits = App.useQuery(getArtworks, page)
 
   return (
     <div>
@@ -284,14 +316,36 @@ export function ArtworksView() {
 // Live Init
 //
 
-function Home() {
+const HomeClientLayer = L.identity<T.DefaultEnv>()["+++"](
+  LiveArtworkRepo["+++"](ClientArtworkDataSource)
+)
+
+function Home({ initial }: { initial: string }) {
+  App.hydrate(initial)
+
   return (
-    <App.Provider layer={LiveArtworkRepo["+++"](L.identity<T.DefaultEnv>())}>
-      <App.DataSourceProvider sources={[articMuseumDS]}>
-        <ArtworksView />
-      </App.DataSourceProvider>
+    <App.Provider sources={[artworkClientDataSource]} layer={HomeClientLayer}>
+      <ArtworksView />
     </App.Provider>
   )
+}
+
+export async function getServerSideProps() {
+  const initial = await pipe(
+    Q.gen(function* (_) {
+      const page = yield* _(getArtworks(1))
+      yield* _(Q.collectAllPar(Chunk.map_(page.data, (_) => getArtwork(_.api_link))))
+    }),
+    App.collectPrefetch,
+    T.provideServiceM(ArtworkRepo)(makeArtworkRepo),
+    T.provideService(ArtworkDataSource)({ artworkDataSource }),
+    T.runPromise
+  )
+  return {
+    props: {
+      initial
+    }
+  }
 }
 
 export default Home
