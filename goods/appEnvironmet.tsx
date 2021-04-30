@@ -50,7 +50,6 @@ export interface CacheCodec<A extends readonly unknown[], E, B> {
 export interface App<R> {
   Provider: React.FC<{
     layer: L.Layer<T.DefaultEnv, never, R>
-    initial?: string
     sources: Iterable<Ticked<R, any>>
   }>
   useEffect: (self: Lazy<T.RIO<R, void>>, deps: AnyRef[]) => void
@@ -73,6 +72,7 @@ export interface App<R> {
     key: (...args: A) => string
   ) => CacheCodec<A, E, MO.ParsedShapeOf<Self>>
   collectPrefetch: <R, E, A>(query: Q.Query<R, E, A>) => T.Effect<R, never, string>
+  hydrate: (initial?: string) => void
 }
 
 export interface ServiceContext<R> {
@@ -122,15 +122,11 @@ export function createApp<R extends T.DefaultEnv>(): App<R> {
 
   const Provider: React.FC<{
     layer: L.Layer<T.DefaultEnv, never, R>
-    initial?: string
     sources: Iterable<Ticked<R, any>>
-  }> = ({ children, initial, layer, sources }) => {
+  }> = ({ children, layer, sources }) => {
     const provider = React.useMemo(() => L.unsafeMainProvider(layer), [])
 
-    hydrate(initial)
-
     React.useEffect(() => {
-      cache = undefined
       const cancel = T.runCancel(provider.allocate)
       return () => {
         T.run(cancel)
@@ -334,7 +330,8 @@ export function createApp<R extends T.DefaultEnv>(): App<R> {
     useQuery,
     query,
     querySuccessCodec,
-    collectPrefetch
+    collectPrefetch,
+    hydrate
   }
 }
 

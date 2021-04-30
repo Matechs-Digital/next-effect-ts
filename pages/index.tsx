@@ -3,9 +3,15 @@
 import * as Chunk from "@effect-ts/core/Collections/Immutable/Chunk"
 import type * as T from "@effect-ts/core/Effect"
 import * as L from "@effect-ts/core/Effect/Layer"
-import { pipe } from "@effect-ts/core/Function"
+import { flow, pipe } from "@effect-ts/core/Function"
+import * as O from "@effect-ts/core/Option"
 import { matchTag } from "@effect-ts/core/Utils"
 import * as Q from "@effect-ts/query/Query"
+import * as MO from "@effect-ts/schema"
+import * as Parser from "@effect-ts/schema/Parser"
+import type { NextPageContext } from "next"
+import Link from "next/link"
+import { useRouter } from "next/router"
 import * as React from "react"
 
 import { App } from "../src/App"
@@ -40,8 +46,24 @@ export function ArtworkView({ url }: { url: string }) {
   )
 }
 
+export const RouteQuery = MO.required({
+  page: MO.string["|>"](
+    MO.refine(
+      (s): s is string => !Number.isNaN(parseInt(s)),
+      (s) => MO.parseNumberE(s)
+    )
+  )
+})
+
+export const getPage = flow(
+  Parser.for(RouteQuery),
+  (th): O.Option<number> =>
+    th.effect._tag === "Right" ? O.some(parseInt(th.effect.right.get(0).page)) : O.none
+)
+
 export function ArtworksView() {
-  const [page, setPage] = React.useState(1)
+  const router = useRouter()
+  const page = O.getOrElse_(getPage(router.query), () => 1)
   const artworks = App.useQuery(getArtworks, page)
 
   return (
@@ -86,30 +108,34 @@ export function ArtworksView() {
       )}
       <div>
         {page > 1 && (
-          <button
-            onClick={() => {
-              setPage((_) => _ - 1)
-            }}
-          >
-            Previous
-          </button>
+          <>
+            <Link
+              href={{
+                pathname: "/",
+                query: { page: page - 1 }
+              }}
+            >
+              <a>Prev</a>
+            </Link>{" "}
+          </>
         )}
-        <button
-          onClick={() => {
-            setPage((_) => _ + 1)
+        <Link
+          href={{
+            pathname: "/",
+            query: { page: page + 1 }
           }}
         >
-          Next
-        </button>
+          <a>Next</a>
+        </Link>
       </div>
     </div>
   )
 }
 
 export function HomeView({ initial }: { initial: string }) {
+  App.hydrate(initial)
   return (
     <App.Provider
-      initial={initial}
       sources={[artworkClientDataSource]}
       layer={L.identity<T.DefaultEnv>()["+++"](
         LiveArtworkRepo["+++"](ClientArtworkDataSource)
@@ -120,10 +146,10 @@ export function HomeView({ initial }: { initial: string }) {
   )
 }
 
-export async function getServerSideProps() {
+export async function getServerSideProps(ctx: NextPageContext) {
   const initial = await pipe(
     Q.gen(function* (_) {
-      const page = yield* _(getArtworks(1))
+      const page = yield* _(getArtworks(O.getOrElse_(getPage(ctx.query), () => 1)))
       yield* _(Q.collectAllPar(Chunk.map_(page.data, (_) => getArtwork(_.api_link))))
     }),
     App.collectPrefetch,
