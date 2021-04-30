@@ -160,7 +160,9 @@ export const articMuseumDS = DS.makeBatched("ArticMuseum")(
         })
       )
 
-      const results = yield* _(
+      let crm = CRM.empty
+
+      yield* _(
         T.forEachPar_(
           requests,
           T.matchTag({
@@ -168,18 +170,27 @@ export const articMuseumDS = DS.makeBatched("ArticMuseum")(
               pipe(
                 getArtwork(url),
                 T.either,
-                T.chain((res) => T.succeedWith(() => CRM.insert_(CRM.empty, r, res)))
+                T.chain((res) =>
+                  T.succeedWith(() => {
+                    crm = CRM.insert_(crm, r, res)
+                  })
+                )
               ),
             GetArtworks: ({ page }, r) =>
               pipe(
                 getArtworks(page),
                 T.either,
-                T.chain((res) => T.succeedWith(() => CRM.insert_(CRM.empty, r, res)))
+                T.chain((res) =>
+                  T.succeedWith(() => {
+                    crm = CRM.insert_(crm, r, res)
+                  })
+                )
               )
           })
         )
       )
-      return Chunk.reduce_(results, CRM.empty, CRM.concat)
+
+      return crm
     })
 )["|>"](appDataSource)
 
