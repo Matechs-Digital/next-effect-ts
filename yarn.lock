@@ -238,10 +238,10 @@
   resolved "https://registry.yarnpkg.com/@effect-ts/query/-/query-0.18.0.tgz#0b975ae8be647df887085f32594b39aebbda39a6"
   integrity sha512-PVPR1pophgQA1GO+X0vXo/rGQPsGButWEy1A8BdGltN5xs1WdJjwQlQ3C55lOdlkdBJtymOh1YJvNCMv1HDwjA==
 
-"@effect-ts/schema@^0.1.8":
-  version "0.1.8"
-  resolved "https://registry.yarnpkg.com/@effect-ts/schema/-/schema-0.1.8.tgz#619bb12f2c3e3961782e38eec21e6df01bde7806"
-  integrity sha512-kMdEtejlxzqyA4joxCoqmPN5Lb1bU8kvHc/UbnoFaio+p9jaZByVq3ajaBLUaNMRvnyVC8Y7H23lsj0KwID29g==
+"@effect-ts/schema@^0.1.9":
+  version "0.1.9"
+  resolved "https://registry.yarnpkg.com/@effect-ts/schema/-/schema-0.1.9.tgz#d1bf57a7548964011302c481acdb6713afd364f2"
+  integrity sha512-hhKUQ2VDWc/tRXXCNuMBVtfIMLpmC/cX0/knb6paXny8aWl5XZWTPyVvXjhh53t28hMJxxQRicQCqsbNFuHwmw==
   dependencies:
     "@effect-ts/core" "^0.37.3"
 
