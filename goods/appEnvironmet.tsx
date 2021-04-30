@@ -1,15 +1,21 @@
+import { pipe } from "@effect-ts/core"
 import { Case } from "@effect-ts/core/Case"
+import * as Chunk from "@effect-ts/core/Collections/Immutable/Chunk"
+import * as Tp from "@effect-ts/core/Collections/Immutable/Tuple"
 import * as T from "@effect-ts/core/Effect"
 import * as S from "@effect-ts/core/Effect/Experimental/Stream"
 import * as F from "@effect-ts/core/Effect/Fiber"
 import * as H from "@effect-ts/core/Effect/Hub"
 import * as L from "@effect-ts/core/Effect/Layer"
+import * as Prom from "@effect-ts/core/Effect/Promise"
+import * as Queue from "@effect-ts/core/Effect/Queue"
 import * as E from "@effect-ts/core/Either"
 import type { Lazy } from "@effect-ts/core/Function"
-import { hole, pipe } from "@effect-ts/core/Function"
-import * as O from "@effect-ts/core/Option"
 import { matchTag } from "@effect-ts/core/Utils"
+import * as CRM from "@effect-ts/query/CompletedRequestMap"
+import * as DS from "@effect-ts/query/DataSource"
 import * as Q from "@effect-ts/query/Query"
+import type * as Req from "@effect-ts/query/Request"
 import * as React from "react"
 
 export type AnyRef = unknown
@@ -32,6 +38,7 @@ export interface AppEnvironment<R> {
   Provider: React.FC<{
     layer: L.Layer<T.DefaultEnv, never, R>
   }>
+  Ticker: React.FC<{ sources: Iterable<Ticked<R, any>> }>
   useEffect: (self: Lazy<T.RIO<R, void>>, deps: AnyRef[]) => void
   useHub<A>(): UseHub<A>
   useSubscribe<A>(
@@ -48,7 +55,7 @@ export interface ServiceContext<R> {
 
 export type UseHub<A> = [Lazy<S.Stream<unknown, never, A>>, (a: A) => void]
 
-export function createApp<R>(): AppEnvironment<R> {
+export function createApp<R extends T.DefaultEnv>(): AppEnvironment<R> {
   const MissingContext = T.die(
     "service context not provided, wrap your app in LiveServiceContext"
   )
@@ -163,11 +170,97 @@ export function createApp<R>(): AppEnvironment<R> {
     return state
   }
 
+  const Ticker: React.FC<{ sources: Iterable<Ticked<R, any>> }> = ({
+    children,
+    sources
+  }) => {
+    useEffect(
+      () =>
+        T.forever(
+          T.forEach_(sources, ({ tick }) => T.fork(tick))["|>"](T.zipRight(T.sleep(0)))
+        )["|>"](T.awaitAllChildren),
+      []
+    )
+    return <>{children}</>
+  }
+
   return {
     Provider,
+    Ticker,
     useEffect,
     useHub,
     useSubscribe,
     useQuery
   }
+}
+
+class Ticked<R, A extends Req.Request<any, any>> extends DS.DataSource<R, A> {
+  private queue = Queue.unsafeMakeUnbounded<
+    Tp.Tuple<
+      [Chunk.Chunk<Chunk.Chunk<A>>, Prom.Promise<never, CRM.CompletedRequestMap>]
+    >
+  >()
+
+  constructor(readonly ds: DS.DataSource<R, A>) {
+    super(`Ticked(${ds.identifier})`, (requests: Chunk.Chunk<Chunk.Chunk<A>>) => {
+      const queue = this.queue
+
+      return T.gen(function* (_) {
+        const promise = yield* _(Prom.make<never, CRM.CompletedRequestMap>())
+
+        yield* _(queue["|>"](Queue.offer(Tp.tuple(requests, promise))))
+
+        return yield* _(Prom.await(promise))
+      })
+    })
+  }
+
+  readonly tick = pipe(
+    this.queue,
+    Queue.takeAll,
+    T.chain((batches) =>
+      pipe(
+        batches,
+        Q.forEachPar(({ tuple: [r, p] }) =>
+          pipe(
+            r,
+            Q.forEach(
+              Q.forEachPar((a) =>
+                pipe(
+                  Q.fromRequest(a, this.ds),
+                  Q.either,
+                  Q.map((res) => Tp.tuple(a, res))
+                )
+              )
+            ),
+            Q.chain((as) =>
+              pipe(
+                p,
+                Prom.succeed(
+                  pipe(
+                    as,
+                    Chunk.reduce(CRM.empty, (crm, ser) =>
+                      pipe(
+                        ser,
+                        Chunk.reduce(crm, (crm, { tuple: [a, res] }) =>
+                          CRM.insert_(crm, a, res)
+                        )
+                      )
+                    )
+                  )
+                ),
+                Q.fromEffect
+              )
+            )
+          )
+        ),
+        Q.run,
+        T.asUnit
+      )
+    )
+  )
+}
+
+export function appDS<R, A extends Req.Request<any, any>>(ds: DS.DataSource<R, A>) {
+  return new Ticked(ds)
 }

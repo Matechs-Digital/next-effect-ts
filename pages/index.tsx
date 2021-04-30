@@ -3,18 +3,20 @@ import { Tagged } from "@effect-ts/core/Case"
 import * as Chunk from "@effect-ts/core/Collections/Immutable/Chunk"
 import * as T from "@effect-ts/core/Effect"
 import * as L from "@effect-ts/core/Effect/Layer"
-import type { Either } from "@effect-ts/core/Either"
 import { flow } from "@effect-ts/core/Function"
 import type { Has } from "@effect-ts/core/Has"
 import { tag } from "@effect-ts/core/Has"
 import type { _A } from "@effect-ts/core/Utils"
 import { matchTag } from "@effect-ts/core/Utils"
+import * as CRM from "@effect-ts/query/CompletedRequestMap"
+import * as DS from "@effect-ts/query/DataSource"
 import * as Q from "@effect-ts/query/Query"
+import * as Req from "@effect-ts/query/Request"
 import * as MO from "@effect-ts/schema"
 import * as Parser from "@effect-ts/schema/Parser"
 import * as React from "react"
 
-import { createApp } from "../goods/appEnvironmet"
+import { appDS, createApp } from "../goods/appEnvironmet"
 
 export class HttpError extends Tagged("HttpError")<{
   readonly error: unknown
@@ -44,109 +46,196 @@ export function httpFetch(input: RequestInfo, init?: Omit<RequestInit, "signal">
   })
 }
 
-const CommitBody = MO.struct({
+const ArtworkEntry = MO.struct({
   required: {
-    message: MO.string
+    api_link: MO.string
   }
 })
 
-const Commit = MO.struct({
+const Artworks = MO.struct({
   required: {
-    commit: CommitBody
+    data: MO.chunk(ArtworkEntry)
   }
 })
 
-const Commits = MO.chunk(Commit)
+const Artwork = MO.struct({
+  required: {
+    data: MO.struct({
+      required: {
+        title: MO.string
+      }
+    })
+  }
+})
 
-export class ParseCommitError extends Tagged("ParseCommitError")<{
+export class ParseArtworksError extends Tagged("ParseArtworksError")<{
   readonly error: MO.CondemnException
 }> {}
 
-const parseCommits = flow(
-  Parser.for(Commits)["|>"](MO.condemnFail),
-  T.mapError((_) => new ParseCommitError({ error: _ }))
+const parseArtworks = flow(
+  Parser.for(Artworks)["|>"](MO.condemnFail),
+  T.mapError((_) => new ParseArtworksError({ error: _ }))
 )
 
-export const makeCommitRepo = T.succeedWith(() => {
+export class ParseArtworkError extends Tagged("ParseArtworkError")<{
+  readonly error: MO.CondemnException
+}> {}
+
+const parseArtwork = flow(
+  Parser.for(Artwork)["|>"](MO.condemnFail),
+  T.mapError((_) => new ParseArtworkError({ error: _ }))
+)
+
+export const makeArtworkRepo = T.succeedWith(() => {
   return {
-    getPage: (page: number) =>
+    getArtworks: (page: number) =>
       T.gen(function* (_) {
         const response = yield* _(
-          httpFetch(`https://api.github.com/repos/Effect-TS/core/commits?page=${page}`)
+          httpFetch(`https://api.artic.edu/api/v1/artworks?page=${page}`)
         )
 
-        return yield* _(parseCommits(response))
+        return yield* _(parseArtworks(response))
+      }),
+    getArtwork: (url: string) =>
+      T.gen(function* (_) {
+        const response = yield* _(httpFetch(url))
+
+        return yield* _(parseArtwork(response))
       })
   } as const
 })
 
-export interface CommitRepo extends _A<typeof makeCommitRepo> {}
-export const CommitRepo = tag<CommitRepo>()
-export const LiveCommitRepo = L.fromEffect(CommitRepo)(makeCommitRepo)
+export interface ArtworkRepo extends _A<typeof makeArtworkRepo> {}
+export const ArtworkRepo = tag<ArtworkRepo>()
+export const LiveArtworkRepo = L.fromEffect(ArtworkRepo)(makeArtworkRepo)
 
-export const App = createApp<Has<CommitRepo> & T.DefaultEnv>()
+export const App = createApp<Has<ArtworkRepo> & T.DefaultEnv>()
 
-export function Autocomplete() {
-  const [page, setPage] = React.useState(0)
+export class GetArtworks extends Req.Static<
+  { readonly page: number },
+  HttpError | ParseArtworksError,
+  MO.ParsedShapeOf<typeof Artworks>
+> {
+  readonly _tag = "GetArtworks"
+}
 
-  const commits = App.useQuery(
-    () =>
-      Q.gen(function* (_) {
-        const { getPage } = yield* _(CommitRepo)
+export class GetArtwork extends Req.Static<
+  { readonly url: string },
+  HttpError | ParseArtworkError,
+  MO.ParsedShapeOf<typeof Artwork>
+> {
+  readonly _tag = "GetArtwork"
+}
 
-        return yield* _(getPage(page))
-      }),
-    [page]
-  )
+const artic = DS.makeBatched("Github")(
+  (requests: Chunk.Chunk<GetArtworks | GetArtwork>) =>
+    T.gen(function* (_) {
+      const { getArtwork, getArtworks } = yield* _(ArtworkRepo)
 
-  const renderDone: (
-    _: Either<HttpError | ParseCommitError, MO.ParsedShapeOf<typeof Commits>>
-  ) => JSX.Element = matchTag({
-    Right: (_) => (
-      <div>
-        {pipe(
-          _.right,
-          Chunk.zipWithIndex,
-          Chunk.map(({ tuple: [{ commit: { message } }, i] }) => (
-            <p key={i}>{message}</p>
-          ))
-        )}
-      </div>
-    ),
-    Left: (_) =>
-      _.left["|>"](
-        matchTag({
-          ParseCommitError: (_) => (
-            <div>
-              {_.error.message.split("\n").map((s) => (
-                <>
-                  {s}
-                  <br />
-                </>
-              ))}
-            </div>
-          ),
-          HttpError: () => <div>Error</div>
+      yield* _(
+        T.succeedWith(() => {
+          console.log(`processing ${requests.length} requests`)
         })
       )
-  })
+
+      const results = yield* _(
+        T.forEachPar_(
+          requests,
+          T.matchTag({
+            GetArtwork: ({ url }, r) =>
+              pipe(
+                getArtwork(url),
+                T.either,
+                T.chain((res) => T.succeedWith(() => CRM.insert_(CRM.empty, r, res)))
+              ),
+            GetArtworks: ({ page }, r) =>
+              pipe(
+                getArtworks(page),
+                T.either,
+                T.chain((res) => T.succeedWith(() => CRM.insert_(CRM.empty, r, res)))
+              )
+          })
+        )
+      )
+      return Chunk.reduce_(results, CRM.empty, CRM.concat)
+    })
+)["|>"](appDS)
+
+function getArtwork(url: string) {
+  return Q.fromRequest(new GetArtwork({ url }), artic)
+}
+
+function getArtworks(page: number) {
+  return Q.fromRequest(new GetArtworks({ page }), artic)
+}
+
+export function ArtworkView({ url }: { url: string }) {
+  const commit = App.useQuery(() => getArtwork(url), [url])
+
+  return <div>{JSON.stringify(commit)}</div>
+}
+
+export function ArtworksView() {
+  const [page, setPage] = React.useState(1)
+
+  const commits = App.useQuery(() => getArtworks(page), [page])
 
   return (
     <div>
       {commits["|>"](
         matchTag({
-          Done: (_) => _.current["|>"](renderDone),
           Loading: () => <div>Loading...</div>,
-          Refreshing: (_) => <div>Loading...</div>
+          Refreshing: (_) => <div>Loading...</div>,
+          Done: (_) =>
+            _.current["|>"](
+              matchTag({
+                Right: (_) => (
+                  <div>
+                    {pipe(
+                      _.right.data,
+                      Chunk.zipWithIndex,
+                      Chunk.map(({ tuple: [{ api_link }, i] }) => (
+                        <ArtworkView url={api_link} key={i} />
+                      ))
+                    )}
+                  </div>
+                ),
+                Left: (_) =>
+                  _.left["|>"](
+                    matchTag({
+                      ParseArtworksError: (_) => (
+                        <div>
+                          {_.error.message.split("\n").map((s) => (
+                            <>
+                              {s}
+                              <br />
+                            </>
+                          ))}
+                        </div>
+                      ),
+                      HttpError: () => <div>Error</div>
+                    })
+                  )
+              })
+            )
         })
       )}
       <div>
+        {page > 1 && (
+          <button
+            onClick={() => {
+              setPage((_) => _ - 1)
+            }}
+          >
+            Previous
+          </button>
+        )}
         <button
           onClick={() => {
             setPage((_) => _ + 1)
           }}
         >
-          Previous
+          Next
         </button>
       </div>
     </div>
@@ -155,8 +244,10 @@ export function Autocomplete() {
 
 function Home() {
   return (
-    <App.Provider layer={LiveCommitRepo["+++"](L.identity<T.DefaultEnv>())}>
-      <Autocomplete />
+    <App.Provider layer={LiveArtworkRepo["+++"](L.identity<T.DefaultEnv>())}>
+      <App.Ticker sources={[artic]}>
+        <ArtworksView />
+      </App.Ticker>
     </App.Provider>
   )
 }
