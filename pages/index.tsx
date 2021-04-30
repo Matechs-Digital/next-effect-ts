@@ -46,28 +46,24 @@ export function httpFetch(input: RequestInfo, init?: Omit<RequestInit, "signal">
   })
 }
 
-const ArtworkEntry = MO.struct({
+const ArtworkEntry_ = MO.struct({
   required: {
     api_link: MO.string
   }
 })
+interface ArtworkEntry extends MO.ParsedShapeOf<typeof ArtworkEntry_> {}
+const ArtworkEntry = MO.opaque<ArtworkEntry>()(ArtworkEntry_)
 
-const Artworks_ = MO.struct({
-  required: {
-    data: MO.chunk(ArtworkEntry)
-  }
+const Artworks_ = MO.required({
+  data: MO.chunk(ArtworkEntry)
 })
 interface Artworks extends MO.ParsedShapeOf<typeof Artworks_> {}
 const Artworks = MO.opaque<Artworks>()(Artworks_)
 
-const Artwork_ = MO.struct({
-  required: {
-    data: MO.struct({
-      required: {
-        title: MO.string
-      }
-    })
-  }
+const Artwork_ = MO.required({
+  data: MO.required({
+    title: MO.string
+  })
 })
 interface Artwork extends MO.ParsedShapeOf<typeof Artwork_> {}
 const Artwork = MO.opaque<Artwork>()(Artwork_)
