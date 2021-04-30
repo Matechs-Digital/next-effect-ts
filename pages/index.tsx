@@ -321,10 +321,12 @@ const HomeClientLayer = L.identity<T.DefaultEnv>()["+++"](
 )
 
 function Home({ initial }: { initial: string }) {
-  App.hydrate(initial)
-
   return (
-    <App.Provider sources={[artworkClientDataSource]} layer={HomeClientLayer}>
+    <App.Provider
+      sources={[artworkClientDataSource]}
+      layer={HomeClientLayer}
+      initial={initial}
+    >
       <ArtworksView />
     </App.Provider>
   )

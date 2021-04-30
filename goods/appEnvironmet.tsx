@@ -51,7 +51,6 @@ export interface AppEnvironment<R> {
     initial?: string
     sources: Iterable<Ticked<R, any>>
   }>
-
   useEffect: (self: Lazy<T.RIO<R, void>>, deps: AnyRef[]) => void
   useHub<A>(): UseHub<A>
   useSubscribe<A>(
@@ -72,7 +71,6 @@ export interface AppEnvironment<R> {
     key: (...args: A) => string
   ) => CacheCodec<A, E, MO.ParsedShapeOf<Self>>
   collectPrefetch: <R, E, A>(query: Q.Query<R, E, A>) => T.Effect<R, never, string>
-  hydrate: (initial?: string | undefined) => void
 }
 
 export interface ServiceContext<R> {
@@ -122,11 +120,15 @@ export function createApp<R extends T.DefaultEnv>(): AppEnvironment<R> {
 
   const Provider: React.FC<{
     layer: L.Layer<T.DefaultEnv, never, R>
+    initial?: string
     sources: Iterable<Ticked<R, any>>
-  }> = ({ children, layer, sources }) => {
+  }> = ({ children, initial, layer, sources }) => {
     const provider = React.useMemo(() => L.unsafeMainProvider(layer), [])
 
+    hydrate(initial)
+
     React.useEffect(() => {
+      cache = undefined
       const cancel = T.runCancel(provider.allocate)
       return () => {
         T.run(cancel)
@@ -330,8 +332,7 @@ export function createApp<R extends T.DefaultEnv>(): AppEnvironment<R> {
     useQuery,
     query,
     querySuccessCodec,
-    collectPrefetch,
-    hydrate
+    collectPrefetch
   }
 }
 
