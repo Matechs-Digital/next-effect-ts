@@ -215,7 +215,15 @@ export const ClientArtworkDataSource = L.fromEffect(ArtworkDataSource)(
   makeArtworkClientDataSource
 )
 
+//
+// App
+//
+
 export const App = createApp<Has<ArtworkRepo> & Has<ArtworkDataSource> & T.DefaultEnv>()
+
+//
+// Queries
+//
 
 export const getArtwork = App.query(
   (url: string) =>
