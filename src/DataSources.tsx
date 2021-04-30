@@ -4,6 +4,7 @@ import { pipe } from "@effect-ts/core"
 import type * as Chunk from "@effect-ts/core/Collections/Immutable/Chunk"
 import * as T from "@effect-ts/core/Effect"
 import * as L from "@effect-ts/core/Effect/Layer"
+import * as Ref from "@effect-ts/core/Effect/Ref"
 import { tag } from "@effect-ts/core/Has"
 import type { _A } from "@effect-ts/core/Utils"
 import * as CRM from "@effect-ts/query/CompletedRequestMap"
@@ -22,7 +23,7 @@ export const artworkServerDataSource = DS.makeBatched("ArticMuseum")(
     T.gen(function* (_) {
       const { getArtwork, getArtworks } = yield* _(ArtworkRepo)
 
-      let crm = CRM.empty
+      const crm = yield* _(Ref.makeRef(CRM.empty))
 
       yield* _(
         T.forEachPar_(
@@ -32,27 +33,19 @@ export const artworkServerDataSource = DS.makeBatched("ArticMuseum")(
               pipe(
                 getArtwork(url),
                 T.either,
-                T.chain((res) =>
-                  T.succeedWith(() => {
-                    crm = CRM.insert_(crm, r, res)
-                  })
-                )
+                T.chain((res) => Ref.update_(crm, CRM.insert(r, res)))
               ),
             GetArtworks: ({ page }, r) =>
               pipe(
                 getArtworks(page),
                 T.either,
-                T.chain((res) =>
-                  T.succeedWith(() => {
-                    crm = CRM.insert_(crm, r, res)
-                  })
-                )
+                T.chain((res) => Ref.update_(crm, CRM.insert(r, res)))
               )
           })
         )
       )
 
-      return crm
+      return yield* _(Ref.get(crm))
     })
 )
 
