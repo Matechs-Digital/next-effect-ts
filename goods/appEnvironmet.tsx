@@ -47,7 +47,7 @@ export interface CacheCodec<A extends readonly unknown[], E, B> {
   from: (args: A, map: Record<string, string>) => Option<E.Either<E, B>>
 }
 
-export interface AppEnvironment<R> {
+export interface App<R> {
   Provider: React.FC<{
     layer: L.Layer<T.DefaultEnv, never, R>
     initial?: string
@@ -93,7 +93,7 @@ export function isPrefetchContext(u: unknown): u is PrefetchContext {
   return typeof u === "object" && u != null && prefetchSymbol in u
 }
 
-export function createApp<R extends T.DefaultEnv>(): AppEnvironment<R> {
+export function createApp<R extends T.DefaultEnv>(): App<R> {
   const MissingContext = T.die(
     "service context not provided, wrap your app in LiveServiceContext"
   )
