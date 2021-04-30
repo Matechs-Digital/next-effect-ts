@@ -46,10 +46,8 @@ export function httpFetch(input: RequestInfo, init?: Omit<RequestInit, "signal">
   })
 }
 
-const ArtworkEntry_ = MO.struct({
-  required: {
-    api_link: MO.string
-  }
+const ArtworkEntry_ = MO.required({
+  api_link: MO.string
 })
 interface ArtworkEntry extends MO.ParsedShapeOf<typeof ArtworkEntry_> {}
 const ArtworkEntry = MO.opaque<ArtworkEntry>()(ArtworkEntry_)
