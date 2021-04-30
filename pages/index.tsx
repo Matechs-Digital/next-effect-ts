@@ -18,6 +18,10 @@ import * as React from "react"
 
 import { appDataSource, createApp } from "../goods/appEnvironmet"
 
+//
+// Http Utilities
+//
+
 export class HttpError extends Tagged("HttpError")<{
   readonly error: unknown
 }> {}
@@ -46,31 +50,39 @@ export function httpFetch(input: RequestInfo, init?: Omit<RequestInit, "signal">
   })
 }
 
-const ArtworkEntry_ = MO.required({
+//
+// Domain
+//
+
+export const ArtworkEntry_ = MO.required({
   api_link: MO.string
 })
-interface ArtworkEntry extends MO.ParsedShapeOf<typeof ArtworkEntry_> {}
-const ArtworkEntry = MO.opaque<ArtworkEntry>()(ArtworkEntry_)
+export interface ArtworkEntry extends MO.ParsedShapeOf<typeof ArtworkEntry_> {}
+export const ArtworkEntry = MO.opaque<ArtworkEntry>()(ArtworkEntry_)
 
-const Artworks_ = MO.required({
+export const Artworks_ = MO.required({
   data: MO.chunk(ArtworkEntry)
 })
-interface Artworks extends MO.ParsedShapeOf<typeof Artworks_> {}
-const Artworks = MO.opaque<Artworks>()(Artworks_)
+export interface Artworks extends MO.ParsedShapeOf<typeof Artworks_> {}
+export const Artworks = MO.opaque<Artworks>()(Artworks_)
 
-const Artwork_ = MO.required({
+export const Artwork_ = MO.required({
   data: MO.required({
     title: MO.string
   })
 })
-interface Artwork extends MO.ParsedShapeOf<typeof Artwork_> {}
-const Artwork = MO.opaque<Artwork>()(Artwork_)
+export interface Artwork extends MO.ParsedShapeOf<typeof Artwork_> {}
+export const Artwork = MO.opaque<Artwork>()(Artwork_)
+
+//
+// Decoders
+//
 
 export class ParseArtworksError extends Tagged("ParseArtworksError")<{
   readonly error: MO.CondemnException
 }> {}
 
-const parseArtworks = flow(
+export const parseArtworks = flow(
   Parser.for(Artworks)["|>"](MO.condemnFail),
   T.mapError((_) => new ParseArtworksError({ error: _ }))
 )
@@ -79,10 +91,14 @@ export class ParseArtworkError extends Tagged("ParseArtworkError")<{
   readonly error: MO.CondemnException
 }> {}
 
-const parseArtwork = flow(
+export const parseArtwork = flow(
   Parser.for(Artwork)["|>"](MO.condemnFail),
   T.mapError((_) => new ParseArtworkError({ error: _ }))
 )
+
+//
+// Repositories
+//
 
 export const makeArtworkRepo = T.succeedWith(() => {
   return {
@@ -109,6 +125,10 @@ export const LiveArtworkRepo = L.fromEffect(ArtworkRepo)(makeArtworkRepo)
 
 export const App = createApp<Has<ArtworkRepo> & T.DefaultEnv>()
 
+//
+// Requests
+//
+
 export class GetArtworks extends Req.Static<
   { readonly page: number },
   HttpError | ParseArtworksError,
@@ -125,7 +145,11 @@ export class GetArtwork extends Req.Static<
   readonly _tag = "GetArtwork"
 }
 
-const articMuseumDS = DS.makeBatched("ArticMuseum")(
+//
+// Data Sources
+//
+
+export const articMuseumDS = DS.makeBatched("ArticMuseum")(
   (requests: Chunk.Chunk<GetArtworks | GetArtwork>) =>
     T.gen(function* (_) {
       const { getArtwork, getArtworks } = yield* _(ArtworkRepo)
@@ -159,13 +183,21 @@ const articMuseumDS = DS.makeBatched("ArticMuseum")(
     })
 )["|>"](appDataSource)
 
-function getArtwork(url: string) {
+//
+// Queries
+//
+
+export function getArtwork(url: string) {
   return Q.fromRequest(new GetArtwork({ url }), articMuseumDS)
 }
 
-function getArtworks(page: number) {
+export function getArtworks(page: number) {
   return Q.fromRequest(new GetArtworks({ page }), articMuseumDS)
 }
+
+//
+// Components
+//
 
 export function ArtworkView({ url }: { url: string }) {
   const commit = App.useQuery(() => getArtwork(url), [url])
@@ -239,6 +271,10 @@ export function ArtworksView() {
     </div>
   )
 }
+
+//
+// Live Init
+//
 
 function Home() {
   return (
