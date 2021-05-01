@@ -104,8 +104,6 @@ export function createApp<R extends T.DefaultEnv>(): App<R> {
 
   const queries = new Map()
 
-  const cache: {} | undefined = undefined
-
   const DataSourceProvider: React.FC<{ sources: Iterable<Ticked<R, any>> }> = ({
     children,
     sources
