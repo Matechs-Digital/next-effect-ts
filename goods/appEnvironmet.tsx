@@ -198,25 +198,30 @@ export function createApp<R extends T.DefaultEnv>(): App<R> {
     ...args: A
   ): QueryResult<E, B> {
     const cache = React.useContext(InitialContext)
+    const [currentCache, updateCurrentCache] = React.useState(cache)
 
     const codecCache = queries.get(f) as CacheCodec<any, any, any>
     const cached = codecCache.from(args, cache)
 
-    if (cached._tag === "Some") {
-      return new Done({ current: cached.value })
-    }
-
     const [state, updateState] = React.useState<QueryResult<E, B>>(
-      O.getOrElse_(cached, () => new Loading())
+      O.getOrElse_(
+        O.map_(cached, (e) => new Done({ current: e })),
+        () => new Loading()
+      )
     )
+
+    React.useEffect(() => {
+      updateCurrentCache(() => cache)
+    }, [cache])
 
     useEffect(() => {
       const codecCache = queries.get(f) as CacheCodec<any, any, any>
-      const cached = codecCache.from(args, cache)
+      const cached = codecCache.from(args, currentCache)
       if (cached._tag === "Some") {
-        return T.succeedWith(() =>
+        return T.succeedWith(() => {
           updateState((_) => new Done({ current: cached.value }))
-        )
+          updateCurrentCache((_) => ({}))
+        })
       }
       return pipe(
         T.succeedWith(() => {
@@ -238,7 +243,7 @@ export function createApp<R extends T.DefaultEnv>(): App<R> {
           })
         )
       )
-    }, [...args, cache])
+    }, args)
 
     return state
   }
