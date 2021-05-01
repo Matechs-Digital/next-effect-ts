@@ -69,13 +69,14 @@ export const RouteQuery = MO.required({
 export const getPage = flow(Parser.for(RouteQuery), ({ effect }) =>
   pipe(
     O.fromEither(effect),
-    O.map(({ tuple: [{ page }] }) => page)
+    O.map(({ tuple: [{ page }] }) => page),
+    O.getOrElse(() => 1)
   )
 )
 
 export function ArtworksView() {
   const router = useRouter()
-  const page = O.getOrElse_(getPage(router.query), () => 1)
+  const page = getPage(router.query)
   const artworks = App.useQuery(getArtworks, page)
 
   return (
@@ -161,7 +162,7 @@ export function HomeView({ initial }: { initial: string }) {
 export async function getServerSideProps(ctx: NextPageContext) {
   const initial = await pipe(
     Q.gen(function* (_) {
-      const page = yield* _(getArtworks(O.getOrElse_(getPage(ctx.query), () => 1)))
+      const page = yield* _(getArtworks(getPage(ctx.query)))
       yield* _(Q.collectAllPar(Chunk.map_(page.data, (_) => getArtwork(_.api_link))))
     }),
     App.collectPrefetch,
