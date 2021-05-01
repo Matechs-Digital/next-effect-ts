@@ -133,9 +133,9 @@ export function ArtworksView() {
 }
 
 export function HomeView({ initial }: { initial: string }) {
-  App.hydrate(initial)
   return (
     <App.Provider
+      initial={initial}
       sources={[artworkClientDataSource]}
       layer={L.identity<T.DefaultEnv>()["+++"](
         LiveArtworkRepo["+++"](ClientArtworkDataSource)

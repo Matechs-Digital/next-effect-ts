@@ -50,6 +50,7 @@ export interface CacheCodec<A extends readonly unknown[], E, B> {
 export interface App<R> {
   Provider: React.FC<{
     layer: L.Layer<T.DefaultEnv, never, R>
+    initial?: string
     sources: Iterable<Ticked<R, any>>
   }>
   useEffect: (self: Lazy<T.RIO<R, void>>, deps: AnyRef[]) => void
@@ -72,7 +73,6 @@ export interface App<R> {
     key: (...args: A) => string
   ) => CacheCodec<A, E, MO.ParsedShapeOf<Self>>
   collectPrefetch: <R, E, A>(query: Q.Query<R, E, A>) => T.Effect<R, never, string>
-  hydrate: (initial?: string) => void
 }
 
 export interface ServiceContext<R> {
@@ -104,7 +104,7 @@ export function createApp<R extends T.DefaultEnv>(): App<R> {
 
   const queries = new Map()
 
-  let cache: {} | undefined = undefined
+  const cache: {} | undefined = undefined
 
   const DataSourceProvider: React.FC<{ sources: Iterable<Ticked<R, any>> }> = ({
     children,
@@ -120,10 +120,13 @@ export function createApp<R extends T.DefaultEnv>(): App<R> {
     return <>{children}</>
   }
 
+  const InitialContext = React.createContext({})
+
   const Provider: React.FC<{
     layer: L.Layer<T.DefaultEnv, never, R>
+    initial?: string
     sources: Iterable<Ticked<R, any>>
-  }> = ({ children, layer, sources }) => {
+  }> = ({ children, initial, layer, sources }) => {
     const provider = React.useMemo(() => L.unsafeMainProvider(layer), [])
 
     React.useEffect(() => {
@@ -136,7 +139,11 @@ export function createApp<R extends T.DefaultEnv>(): App<R> {
 
     return (
       <ServiceContext.Provider value={{ provide: provider.provide }}>
-        <DataSourceProvider sources={sources}>{children}</DataSourceProvider>
+        <DataSourceProvider sources={sources}>
+          <InitialContext.Provider value={initial ? JSON.parse(initial) : {}}>
+            {children}
+          </InitialContext.Provider>
+        </DataSourceProvider>
       </ServiceContext.Provider>
     )
   }
@@ -188,50 +195,52 @@ export function createApp<R extends T.DefaultEnv>(): App<R> {
     }, deps)
   }
 
-  function initial<A extends unknown[], E, B>(
-    f: (...args: A) => Q.Query<R, E, B>,
-    args: A
-  ): QueryResult<E, B> {
-    if (queries.has(f) && cache) {
-      const codecCache = queries.get(f) as CacheCodec<any, any, any>
-      const cached = codecCache.from(args, cache)
-      if (cached._tag === "Some") {
-        return new Done({ current: cached.value })
-      }
-    }
-    return new Loading()
-  }
-
   function useQuery<A extends unknown[], E, B>(
     f: (...args: A) => Q.Query<R, E, B>,
     ...args: A
   ): QueryResult<E, B> {
-    const [state, updateState] = React.useState<QueryResult<E, B>>(initial(f, args))
+    const cache = React.useContext(InitialContext)
 
-    useEffect(
-      () =>
-        pipe(
-          T.succeedWith(() => {
-            updateState(
-              state["|>"](
-                matchTag({
-                  Done: (_) => new Refreshing({ current: _.current }),
-                  Refreshing: (_) => _,
-                  Loading: (_) => _
-                })
-              )
-            )
-          }),
-          T.zipRight(T.suspend(() => Q.run(f(...args)))),
-          T.either,
-          T.chain((done) =>
-            T.succeedWith(() => {
-              updateState((_) => new Done({ current: done }))
-            })
-          )
-        ),
-      args
+    const codecCache = queries.get(f) as CacheCodec<any, any, any>
+    const cached = codecCache.from(args, cache)
+
+    if (cached._tag === "Some") {
+      return new Done({ current: cached.value })
+    }
+
+    const [state, updateState] = React.useState<QueryResult<E, B>>(
+      O.getOrElse_(cached, () => new Loading())
     )
+
+    useEffect(() => {
+      const codecCache = queries.get(f) as CacheCodec<any, any, any>
+      const cached = codecCache.from(args, cache)
+      if (cached._tag === "Some") {
+        return T.succeedWith(() =>
+          updateState((_) => new Done({ current: cached.value }))
+        )
+      }
+      return pipe(
+        T.succeedWith(() => {
+          updateState(
+            state["|>"](
+              matchTag({
+                Done: (_) => new Refreshing({ current: _.current }),
+                Refreshing: (_) => _,
+                Loading: (_) => _
+              })
+            )
+          )
+        }),
+        T.zipRight(T.suspend(() => Q.run(f(...args)))),
+        T.either,
+        T.chain((done) =>
+          T.succeedWith(() => {
+            updateState((_) => new Done({ current: done }))
+          })
+        )
+      )
+    }, [...args, cache])
 
     return state
   }
@@ -313,12 +322,6 @@ export function createApp<R extends T.DefaultEnv>(): App<R> {
       : O.none
   }
 
-  function hydrate(initial?: string) {
-    if (initial) {
-      cache = JSON.parse(initial)
-    }
-  }
-
   return {
     Provider,
     useEffect,
@@ -327,8 +330,7 @@ export function createApp<R extends T.DefaultEnv>(): App<R> {
     useQuery,
     query,
     querySuccessCodec,
-    collectPrefetch,
-    hydrate
+    collectPrefetch
   }
 }
 
