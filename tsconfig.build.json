@@ -14,8 +14,9 @@
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "react"
-    //"plugins": [{ "transform": "@effect-ts/tracing-plugin" }]
+    "jsx": "preserve",
+    "outDir": "prod-intermediary",
+    "plugins": [{ "transform": "@effect-ts/tracing-plugin" }]
   },
   "include": [
     "next-env.d.ts",
@@ -23,8 +24,8 @@
     "pages/**/*.tsx",
     "src/**/*.ts",
     "src/**/*.tsx",
-    "context/**/*.tsx",
-    "environment/**/*.ts"
+    "goods/**/*.ts",
+    "goods/**/*.tsx"
   ],
   "exclude": ["node_modules"]
 }
