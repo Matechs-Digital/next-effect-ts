@@ -206,35 +206,32 @@ export function createApp<R extends T.DefaultEnv>(): App<R> {
     f: (...args: A) => Q.Query<R, E, B>,
     ...args: A
   ): QueryResult<E, B> {
-    const cnt = React.useRef(0)
     const [state, updateState] = React.useState<QueryResult<E, B>>(initial(f, args))
 
-    useEffect(() => {
-      cnt.current = cnt.current + 1
-      if (cnt.current === 1 && state._tag === "Done") {
-        return T.unit
-      }
-      return pipe(
-        T.succeedWith(() => {
-          updateState(
-            state["|>"](
-              matchTag({
-                Done: (_) => new Refreshing({ current: _.current }),
-                Refreshing: (_) => _,
-                Loading: (_) => _
-              })
-            )
-          )
-        }),
-        T.zipRight(T.suspend(() => Q.run(f(...args)))),
-        T.either,
-        T.chain((done) =>
+    useEffect(
+      () =>
+        pipe(
           T.succeedWith(() => {
-            updateState((_) => new Done({ current: done }))
-          })
-        )
-      )
-    }, args)
+            updateState(
+              state["|>"](
+                matchTag({
+                  Done: (_) => new Refreshing({ current: _.current }),
+                  Refreshing: (_) => _,
+                  Loading: (_) => _
+                })
+              )
+            )
+          }),
+          T.zipRight(T.suspend(() => Q.run(f(...args)))),
+          T.either,
+          T.chain((done) =>
+            T.succeedWith(() => {
+              updateState((_) => new Done({ current: done }))
+            })
+          )
+        ),
+      args
+    )
 
     return state
   }
