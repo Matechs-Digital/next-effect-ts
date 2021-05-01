@@ -11,7 +11,7 @@ import Link from "next/link"
 import { useRouter } from "next/router"
 import * as React from "react"
 
-import { App } from "../src/App"
+import { AppEnv } from "../src/AppEnv"
 import type { ArtworkApiLink } from "../src/Domain"
 import { getArtwork, getArtworks } from "../src/Queries"
 import { serverRuntime } from "../src/Server"
@@ -21,7 +21,7 @@ import { serverRuntime } from "../src/Server"
 //
 
 export function ArtworkView({ url }: { url: ArtworkApiLink }) {
-  const artwork = RQ.useQuery(App, getArtwork, url)
+  const artwork = RQ.useQuery(AppEnv, getArtwork, url)
 
   return (
     <div>
@@ -60,7 +60,7 @@ export const getPage = flow(
 export function ArtworksView() {
   const router = useRouter()
   const page = getPage(router.query)
-  const artworks = RQ.useQuery(App, getArtworks, page)
+  const artworks = RQ.useQuery(AppEnv, getArtworks, page)
 
   return (
     <div>

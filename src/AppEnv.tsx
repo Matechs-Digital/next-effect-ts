@@ -9,4 +9,6 @@ import type { ArtworkRepo } from "./Repositories"
 // App
 //
 
-export const App = Env.make<Has<ArtworkRepo> & Has<ArtworkDataSource> & T.DefaultEnv>()
+export const AppEnv = Env.make<
+  Has<ArtworkRepo> & Has<ArtworkDataSource> & T.DefaultEnv
+>()
