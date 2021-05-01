@@ -198,7 +198,6 @@ export function createApp<R extends T.DefaultEnv>(): App<R> {
     ...args: A
   ): QueryResult<E, B> {
     const cache = React.useContext(InitialContext)
-    const [currentCache, updateCurrentCache] = React.useState(cache)
 
     const codecCache = queries.get(f) as CacheCodec<any, any, any>
     const cached = codecCache.from(args, cache)
@@ -210,17 +209,12 @@ export function createApp<R extends T.DefaultEnv>(): App<R> {
       )
     )
 
-    React.useEffect(() => {
-      updateCurrentCache(() => cache)
-    }, [cache])
-
     useEffect(() => {
       const codecCache = queries.get(f) as CacheCodec<any, any, any>
-      const cached = codecCache.from(args, currentCache)
+      const cached = codecCache.from(args, cache)
       if (cached._tag === "Some") {
         return T.succeedWith(() => {
           updateState((_) => new Done({ current: cached.value }))
-          updateCurrentCache((_) => ({}))
         })
       }
       return pipe(
