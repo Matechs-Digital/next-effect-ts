@@ -1,5 +1,3 @@
-// tracing: off
-
 import { Tagged } from "@effect-ts/core/Case"
 import * as T from "@effect-ts/core/Effect"
 import { flow } from "@effect-ts/core/Function"

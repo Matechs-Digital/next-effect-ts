@@ -1,12 +1,9 @@
-// tracing: off
-
 import * as Chunk from "@effect-ts/core/Collections/Immutable/Chunk"
-import type * as T from "@effect-ts/core/Effect"
-import * as L from "@effect-ts/core/Effect/Layer"
 import { flow, pipe } from "@effect-ts/core/Function"
 import * as O from "@effect-ts/core/Option"
 import { matchTag } from "@effect-ts/core/Utils"
 import * as Q from "@effect-ts/query/Query"
+import * as RQ from "@effect-ts/react/Query"
 import * as MO from "@effect-ts/schema"
 import * as Parser from "@effect-ts/schema/Parser"
 import type { NextPageContext } from "next"
@@ -15,10 +12,8 @@ import { useRouter } from "next/router"
 import * as React from "react"
 
 import { App } from "../src/App"
-import { artworkClientDataSource, ClientArtworkDataSource } from "../src/DataSources"
 import type { ArtworkApiLink } from "../src/Domain"
 import { getArtwork, getArtworks } from "../src/Queries"
-import { LiveArtworkRepo } from "../src/Repositories"
 import { serverRuntime } from "../src/Server"
 
 //
@@ -26,7 +21,7 @@ import { serverRuntime } from "../src/Server"
 //
 
 export function ArtworkView({ url }: { url: ArtworkApiLink }) {
-  const artwork = App.useQuery(getArtwork, url)
+  const artwork = RQ.useQuery(App, getArtwork, url)
 
   return (
     <div>
@@ -65,7 +60,7 @@ export const getPage = flow(
 export function ArtworksView() {
   const router = useRouter()
   const page = getPage(router.query)
-  const artworks = App.useQuery(getArtworks, page)
+  const artworks = RQ.useQuery(App, getArtworks, page)
 
   return (
     <div>
@@ -133,34 +128,28 @@ export function ArtworksView() {
   )
 }
 
-export function HomeView({ initial }: { initial: string }) {
-  return (
-    <App.Provider
-      initial={initial}
-      sources={[artworkClientDataSource]}
-      layer={L.identity<T.DefaultEnv>()["+++"](
-        LiveArtworkRepo["+++"](ClientArtworkDataSource)
-      )}
-    >
-      <ArtworksView />
-    </App.Provider>
-  )
-}
-
 export async function getServerSideProps(ctx: NextPageContext) {
-  const initial = await pipe(
+  const prefetch = await pipe(
     Q.gen(function* (_) {
       const page = yield* _(getArtworks(getPage(ctx.query)))
       yield* _(Q.collectAllPar(Chunk.map_(page.data, (_) => getArtwork(_.api_link))))
     }),
-    App.collectPrefetch,
+    RQ.prefetch,
     serverRuntime.runPromise
   )
   return {
     props: {
-      initial
+      prefetch
     }
   }
+}
+
+export function HomeView({ prefetch }: { prefetch: string }) {
+  return (
+    <RQ.PrefetchProvider prefetch={prefetch}>
+      <ArtworksView />
+    </RQ.PrefetchProvider>
+  )
 }
 
 export default HomeView

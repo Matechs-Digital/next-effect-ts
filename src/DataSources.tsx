@@ -1,5 +1,3 @@
-// tracing: off
-
 import { pipe } from "@effect-ts/core"
 import type * as Chunk from "@effect-ts/core/Collections/Immutable/Chunk"
 import * as T from "@effect-ts/core/Effect"
@@ -9,8 +7,8 @@ import { tag } from "@effect-ts/core/Has"
 import type { _A } from "@effect-ts/core/Utils"
 import * as CRM from "@effect-ts/query/CompletedRequestMap"
 import * as DS from "@effect-ts/query/DataSource"
+import * as RDS from "@effect-ts/react/DataSource"
 
-import { clientDataSource } from "../goods/appEnvironmet"
 import { ArtworkRepo } from "./Repositories"
 import type { GetArtwork, GetArtworks } from "./Requests"
 
@@ -49,7 +47,7 @@ export const artworkServerDataSource = DS.makeBatched("ArticMuseum")(
     })
 )
 
-export const artworkClientDataSource = artworkServerDataSource["|>"](clientDataSource)
+export const artworkClientDataSource = artworkServerDataSource["|>"](RDS.ticked)
 
 export const makeArtworkClientDataSource = T.succeedWith(() => {
   return {

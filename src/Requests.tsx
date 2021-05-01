@@ -1,5 +1,3 @@
-// tracing: off
-
 import * as Req from "@effect-ts/query/Request"
 
 import type { Artwork, Artworks, ParseArtworkError, ParseArtworksError } from "./Domain"

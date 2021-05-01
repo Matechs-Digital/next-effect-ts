@@ -1,5 +1,3 @@
-// tracing: off
-
 import { pipe } from "@effect-ts/core"
 import * as T from "@effect-ts/core/Effect"
 import * as L from "@effect-ts/core/Effect/Layer"

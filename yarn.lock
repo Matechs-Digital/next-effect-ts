@@ -238,6 +238,11 @@
   resolved "https://registry.yarnpkg.com/@effect-ts/query/-/query-0.18.2.tgz#aac5130b1ded84f3b0124d716c866a6f3d8bdbc8"
   integrity sha512-YO8KvUI0hF2lT+rsEQBBujnJRPUvGlawjBLtTC9bxXSsFy2k8sZn3vCQPKW7Qzys2GDZsb+P67KV19hDN8iSHQ==
 
+"@effect-ts/react@^0.0.1":
+  version "0.0.1"
+  resolved "https://registry.yarnpkg.com/@effect-ts/react/-/react-0.0.1.tgz#9a11c375b313ad1de285f4cc9eda7950fc0cd522"
+  integrity sha512-KPBg3ww216fPxt7ziLH7eIq/ZQjGNVrq7KiH2S76nw9kmm4N80wjeTuzJoV15ey6FQWkaIRlVt9Jmnq/ZawbPw==
+
 "@effect-ts/schema@^0.1.13":
   version "0.1.13"
   resolved "https://registry.yarnpkg.com/@effect-ts/schema/-/schema-0.1.13.tgz#f3f39e50187e25e9eff3420367292d4d8b0bcbc5"
