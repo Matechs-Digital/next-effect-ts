@@ -16,9 +16,11 @@ export interface ApiLinkBrand {
 
 export type ArtworkApiLink = string & ApiLinkBrand
 
+export const ArtworkApiLink = MO.string["|>"](MO.brand((_) => _ as ArtworkApiLink))
+
 export class ArtworkEntry extends MO.Schemed(
   MO.required({
-    api_link: MO.string["|>"](MO.brand((_) => _ as ArtworkApiLink))
+    api_link: ArtworkApiLink
   })
 ) {
   static Model = MO.schema(ArtworkEntry)
