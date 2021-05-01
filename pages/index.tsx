@@ -8,7 +8,9 @@ import * as O from "@effect-ts/core/Option"
 import { matchTag } from "@effect-ts/core/Utils"
 import * as Q from "@effect-ts/query/Query"
 import * as MO from "@effect-ts/schema"
+import * as Constructor from "@effect-ts/schema/Constructor"
 import * as Parser from "@effect-ts/schema/Parser"
+import * as Th from "@effect-ts/schema/These"
 import type { NextPageContext } from "next"
 import Link from "next/link"
 import { useRouter } from "next/router"
@@ -46,19 +48,29 @@ export function ArtworkView({ url }: { url: string }) {
   )
 }
 
+const parseStringInt = (s: string) => {
+  const parsed = Number.parseInt(s)
+  if (Number.isNaN(parsed)) {
+    return Th.fail(MO.leafE(MO.parseNumberE(s)))
+  }
+  return Th.succeed(parsed as MO.Int)
+}
+
+const intFromString = pipe(
+  MO.string,
+  MO.compose(pipe(MO.int, MO.parser(parseStringInt), MO.constructor(parseStringInt))),
+  MO.constructor(Constructor.for(MO.int))
+)
+
 export const RouteQuery = MO.required({
-  page: MO.string["|>"](
-    MO.refine(
-      (s): s is string => !Number.isNaN(parseInt(s)),
-      (s) => MO.parseNumberE(s)
-    )
-  )
+  page: intFromString
 })
 
-export const getPage = flow(
-  Parser.for(RouteQuery),
-  (th): O.Option<number> =>
-    th.effect._tag === "Right" ? O.some(parseInt(th.effect.right.get(0).page)) : O.none
+export const getPage = flow(Parser.for(RouteQuery), ({ effect }) =>
+  pipe(
+    O.fromEither(effect),
+    O.map(({ tuple: [{ page }] }) => page)
+  )
 )
 
 export function ArtworksView() {
