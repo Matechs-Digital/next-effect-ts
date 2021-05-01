@@ -18,6 +18,7 @@ import * as React from "react"
 
 import { App } from "../src/App"
 import { artworkClientDataSource, ClientArtworkDataSource } from "../src/DataSources"
+import type { ArtworkApiLink } from "../src/Domain"
 import { getArtwork, getArtworks } from "../src/Queries"
 import { LiveArtworkRepo } from "../src/Repositories"
 import { serverRuntime } from "../src/Server"
@@ -26,7 +27,7 @@ import { serverRuntime } from "../src/Server"
 // Components
 //
 
-export function ArtworkView({ url }: { url: string }) {
+export function ArtworkView({ url }: { url: ArtworkApiLink }) {
   const artwork = App.useQuery(getArtwork, url)
 
   return (

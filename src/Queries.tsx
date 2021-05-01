@@ -1,9 +1,11 @@
 // tracing: off
 
 import * as Q from "@effect-ts/query/Query"
+import type * as MO from "@effect-ts/schema"
 
 import { App } from "./App"
 import { ArtworkDataSource } from "./DataSources"
+import type { ArtworkApiLink } from "./Domain"
 import { Artwork, Artworks } from "./Domain"
 import { GetArtwork, GetArtworks } from "./Requests"
 
@@ -12,7 +14,7 @@ import { GetArtwork, GetArtworks } from "./Requests"
 //
 
 export const getArtwork = App.query(
-  (url: string) =>
+  (url: ArtworkApiLink) =>
     Q.gen(function* (_) {
       const { artworkDataSource } = yield* _(ArtworkDataSource)
       return yield* _(Q.fromRequest(new GetArtwork({ url }), artworkDataSource))
@@ -21,7 +23,7 @@ export const getArtwork = App.query(
 )
 
 export const getArtworks = App.query(
-  (page: number) =>
+  (page: MO.Int) =>
     Q.gen(function* (_) {
       const { artworkDataSource } = yield* _(ArtworkDataSource)
       return yield* _(Q.fromRequest(new GetArtworks({ page }), artworkDataSource))

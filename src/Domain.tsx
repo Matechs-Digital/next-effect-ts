@@ -10,9 +10,15 @@ import * as Parser from "@effect-ts/schema/Parser"
 // Domain
 //
 
+export interface ApiLinkBrand {
+  readonly ApiLinkBrand: unique symbol
+}
+
+export type ArtworkApiLink = string & ApiLinkBrand
+
 export class ArtworkEntry extends MO.Schemed(
   MO.required({
-    api_link: MO.string
+    api_link: MO.string["|>"](MO.brand((_) => _ as ArtworkApiLink))
   })
 ) {
   static Model = MO.schema(ArtworkEntry)
