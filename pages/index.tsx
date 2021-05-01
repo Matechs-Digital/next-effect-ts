@@ -48,22 +48,8 @@ export function ArtworkView({ url }: { url: string }) {
   )
 }
 
-const parseStringInt = (s: string) => {
-  const parsed = Number.parseInt(s)
-  if (Number.isNaN(parsed)) {
-    return Th.fail(MO.leafE(MO.parseNumberE(s)))
-  }
-  return Th.succeed(parsed as MO.Int)
-}
-
-const intFromString = pipe(
-  MO.string,
-  MO.compose(pipe(MO.int, MO.parser(parseStringInt), MO.constructor(parseStringInt))),
-  MO.constructor(Constructor.for(MO.int))
-)
-
 export const RouteQuery = MO.required({
-  page: intFromString
+  page: MO.stringInt
 })
 
 export const getPage = flow(Parser.for(RouteQuery), ({ effect }) =>
