@@ -21,7 +21,7 @@ import * as CRM from "@effect-ts/query/CompletedRequestMap"
 import * as DS from "@effect-ts/query/DataSource"
 import * as Q from "@effect-ts/query/Query"
 import type * as Req from "@effect-ts/query/Request"
-import * as MO from "@effect-ts/schema"
+import type * as MO from "@effect-ts/schema"
 import * as Encoder from "@effect-ts/schema/Encoder"
 import * as Parser from "@effect-ts/schema/Parser"
 import * as React from "react"
@@ -298,29 +298,35 @@ export function createApp<R extends T.DefaultEnv>(): App<R> {
     model: Self,
     key: (...args: A) => string
   ): CacheCodec<A, E, MO.ParsedShapeOf<Self>> {
+    const parseModel = Parser.for(model)
+    const encodeModel = Encoder.for(model)
     return {
-      from: (args, map) => fromCache(map, key(...args), model),
-      to: (args, res) => toCache(model, key(...args), res)
+      from: (args, map) => fromCache(map, key(...args), parseModel),
+      to: (args, res) => toCache(encodeModel, key(...args), res)
     }
   }
 
   function toCache<E, Self extends MO.SchemaUPI>(
-    model: Self,
+    encodeModel: Encoder.Encoder<any, any>,
     key: string,
     res: E.Either<E, MO.ParsedShapeOf<Self>>
   ): O.Option<Tp.Tuple<[string, string]>> {
     return res._tag === "Right"
-      ? O.some(Tp.tuple(key, JSON.stringify(Encoder.for(model)(res.right))))
+      ? O.some(Tp.tuple(key, JSON.stringify(encodeModel(res.right))))
       : O.none
   }
 
   function fromCache<E, Self extends MO.SchemaUPI>(
     map: Record<string, string>,
     key: string,
-    model: Self
+    parseModel: Parser.Parser<unknown, any, any>
   ): O.Option<E.Either<E, MO.ParsedShapeOf<Self>>> {
     return map[key]
-      ? pipe(JSON.parse(map[key]!), Parser.for(model)["|>"](MO.unsafe), E.right, O.some)
+      ? pipe(
+          parseModel(JSON.parse(map[key]!)).effect,
+          O.fromEither,
+          O.map(({ tuple: [x] }) => E.right(x))
+        )
       : O.none
   }
 
