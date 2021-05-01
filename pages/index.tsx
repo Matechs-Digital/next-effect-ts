@@ -52,12 +52,15 @@ export const RouteQuery = MO.required({
   page: MO.stringInt
 })
 
-export const getPage = flow(Parser.for(RouteQuery), ({ effect }) =>
-  pipe(
-    O.fromEither(effect),
-    O.map(({ tuple: [{ page }] }) => page),
-    O.getOrElse(() => 1)
-  )
+export const getPage = flow(
+  Parser.for(RouteQuery),
+  ({ effect }): MO.Int =>
+    pipe(
+      effect,
+      O.fromEither,
+      O.map(({ tuple: [{ page }] }) => page),
+      O.getOrElse(() => 1 as MO.Int)
+    )
 )
 
 export function ArtworksView() {
