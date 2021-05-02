@@ -1,17 +1,10 @@
 import "nprogress/nprogress.css"
 
-import type * as T from "@effect-ts/core/Effect"
-import * as L from "@effect-ts/core/Effect/Layer"
-import * as RDS from "@effect-ts/react/DataSource"
 import type { AppProps } from "next/app"
 import { useRouter } from "next/router"
 import NProgress from "nprogress"
 import * as React from "react"
 import { useEffect } from "react"
-
-import { App, ClientEnv } from "../src/AppEnv"
-import { artworkClientDataSource, ClientArtworkDataSource } from "../src/DataSources"
-import { LiveArtworkRepo } from "../src/Repositories"
 
 function ExtendedApp({ Component, pageProps }: AppProps) {
   const router = useRouter()
