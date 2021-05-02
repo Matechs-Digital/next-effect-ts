@@ -11,7 +11,7 @@
   "dependencies": {
     "@effect-ts/core": "^0.37.3",
     "@effect-ts/query": "^0.18.2",
-    "@effect-ts/react": "^0.1.0",
+    "@effect-ts/react": "^0.1.2",
     "@effect-ts/schema": "^0.1.14",
     "next": "10.2.0",
     "nprogress": "^0.2.0",

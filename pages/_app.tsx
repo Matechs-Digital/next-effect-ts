@@ -9,7 +9,7 @@ import NProgress from "nprogress"
 import * as React from "react"
 import { useEffect } from "react"
 
-import { AppEnv } from "../src/AppEnv"
+import { App, ClientEnv } from "../src/AppEnv"
 import { artworkClientDataSource, ClientArtworkDataSource } from "../src/DataSources"
 import { LiveArtworkRepo } from "../src/Repositories"
 
@@ -30,17 +30,7 @@ function ExtendedApp({ Component, pageProps }: AppProps) {
     }
   }, [])
 
-  return (
-    <RDS.Provider env={AppEnv} sources={[artworkClientDataSource]}>
-      <AppEnv.Provider
-        layer={L.identity<T.DefaultEnv>()["+++"](
-          LiveArtworkRepo["+++"](ClientArtworkDataSource)
-        )}
-      >
-        <Component {...pageProps} />
-      </AppEnv.Provider>
-    </RDS.Provider>
-  )
+  return <Component {...pageProps} />
 }
 
 export default ExtendedApp

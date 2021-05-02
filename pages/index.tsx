@@ -11,7 +11,8 @@ import Link from "next/link"
 import { useRouter } from "next/router"
 import * as React from "react"
 
-import { AppEnv } from "../src/AppEnv"
+import { App, ClientEnv } from "../src/AppEnv"
+import { artworkClientDataSource } from "../src/DataSources"
 import type { ArtworkApiLink } from "../src/Domain"
 import { getArtwork, getArtworks } from "../src/Queries"
 import { serverRuntime } from "../src/Server"
@@ -21,7 +22,7 @@ import { serverRuntime } from "../src/Server"
 //
 
 export function ArtworkView({ url }: { url: ArtworkApiLink }) {
-  const artwork = RQ.useQuery(AppEnv, getArtwork, url)
+  const artwork = App.useQuery(getArtwork, url)
 
   return (
     <div>
@@ -42,12 +43,12 @@ export function ArtworkView({ url }: { url: ArtworkApiLink }) {
   )
 }
 
-export const RouteQuery = MO.required({
-  page: MO.stringInt
-})
-
 export const getPage = flow(
-  Parser.for(RouteQuery),
+  Parser.for(
+    MO.required({
+      page: MO.stringInt
+    })
+  ),
   ({ effect }): MO.Int =>
     pipe(
       effect,
@@ -60,7 +61,7 @@ export const getPage = flow(
 export function ArtworksView() {
   const router = useRouter()
   const page = getPage(router.query)
-  const artworks = RQ.useQuery(AppEnv, getArtworks, page)
+  const artworks = App.useQuery(getArtworks, page)
 
   return (
     <div>
@@ -75,9 +76,8 @@ export function ArtworksView() {
                   <div>
                     {pipe(
                       _.right.data,
-                      Chunk.zipWithIndex,
-                      Chunk.map(({ tuple: [{ api_link }, i] }) => (
-                        <ArtworkView url={api_link} key={i} />
+                      Chunk.map(({ api_link }) => (
+                        <ArtworkView url={api_link} key={api_link} />
                       ))
                     )}
                   </div>
@@ -146,9 +146,13 @@ export async function getServerSideProps(ctx: NextPageContext) {
 
 export function HomeView({ prefetch }: { prefetch: string }) {
   return (
-    <RQ.PrefetchProvider prefetch={prefetch}>
+    <App.Provide
+      prefetch={prefetch}
+      layer={ClientEnv}
+      sources={[artworkClientDataSource]}
+    >
       <ArtworksView />
-    </RQ.PrefetchProvider>
+    </App.Provide>
   )
 }
 
